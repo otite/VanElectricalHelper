@@ -1,0 +1,2022 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dimensionnement électrique du van</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Plan : une plaque signalétique jaune porte les 4 résultats, le tableau des appareils
+     occupe toute la largeur, puis les blocs suivent l'ordre du calcul (batterie, recharge,
+     protections, schéma). Gris coffret électrique, encre noire, jaune réservé aux résultats. */
+  --bg: #E3E6E3;
+  --surface: #F6F7F5;
+  --field: #FFFFFF;
+  --ink: #171C1E;
+  --muted: #566065;
+  --line: #C4CAC6;
+  --plate: #F6C400;
+  --plate-ink: #171C1E;
+  --ok: #0CA30C;
+  --serious: #D9662F;
+  --bad: #D03B3B;
+  --solar: #EDA100;
+  --drive: #2A78D6;
+  --pos: #C8321E;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --font-body: "Barlow", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-tech: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131618;
+    --surface: #1E2225;
+    --field: #15181A;
+    --ink: #E8EBE9;
+    --muted: #9BA5A9;
+    --line: #363D41;
+    --ok: #0CA30C;
+    --serious: #EC835A;
+    --bad: #E66767;
+    --solar: #C98500;
+    --drive: #3987E5;
+    --pos: #E8695A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131618;
+  --surface: #1E2225;
+  --field: #15181A;
+  --ink: #E8EBE9;
+  --muted: #9BA5A9;
+  --line: #363D41;
+  --ok: #0CA30C;
+  --serious: #EC835A;
+  --bad: #E66767;
+  --solar: #C98500;
+  --drive: #3987E5;
+  --pos: #E8695A;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.5 var(--font-body);
+}
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 36px 20px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+[hidden] { display: none !important; }
+
+/* En-tête */
+.masthead { display: flex; flex-direction: column; gap: 10px; }
+.eyebrow {
+  margin: 0;
+  font: 500 12px/1.3 var(--font-tech);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+h1 {
+  margin: 0;
+  font: 700 clamp(34px, 5.2vw, 56px)/.96 var(--font-display);
+  letter-spacing: .005em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+.lede { margin: 0; max-width: 64ch; color: var(--muted); }
+
+/* Plaque signalétique */
+.plate {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: var(--plate);
+  color: var(--plate-ink);
+  border: 2px solid var(--plate-ink);
+  border-radius: 4px;
+}
+.readout {
+  min-width: 0;
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-left: 2px solid var(--plate-ink);
+}
+.readout:first-child { border-left: 0; }
+.readout-label {
+  font: 600 13.5px/1.2 var(--font-display);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.readout-value {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font: 600 clamp(30px, 3.5vw, 44px)/1 var(--font-body);
+}
+.readout-value small {
+  font: 600 16px/1 var(--font-display);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.readout-sub { font: 500 14px/1.35 var(--font-body); }
+.readout .pill { align-self: flex-start; margin-top: 2px; }
+
+/* Blocs */
+.block {
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 22px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.block-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.step { font: 500 13px/1 var(--font-tech); color: var(--muted); }
+h2 {
+  margin: 0;
+  font: 700 25px/1.05 var(--font-display);
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.block-head p { flex-basis: 100%; margin: 4px 0 0; max-width: 78ch; color: var(--muted); font-size: 15px; }
+h3 {
+  margin: 0;
+  font: 600 17px/1.1 var(--font-display);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; }
+.span-5 { grid-column: span 5; }
+.span-7 { grid-column: span 7; }
+.span-12 { grid-column: span 12; }
+
+/* Champs */
+input[type="text"], select, textarea {
+  width: 100%;
+  min-width: 0;
+  font: 500 15.5px/1.3 var(--font-body);
+  color: var(--ink);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 8px 10px;
+}
+textarea { display: block; resize: none; overflow: hidden; min-height: 38px; }
+input.num { text-align: right; font-variant-numeric: tabular-nums; }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: .8; }
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23808a8f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 10px 6px;
+  cursor: pointer;
+}
+input[type="text"]:hover, select:hover, textarea:hover { border-color: var(--muted); }
+[aria-invalid="true"] { border-color: var(--bad) !important; box-shadow: inset 0 0 0 1px var(--bad); }
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 5px var(--plate);
+}
+.unit-field { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.unit { flex: none; min-width: 2.2em; font: 500 12.5px/1 var(--font-tech); color: var(--muted); white-space: nowrap; }
+
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px 16px; }
+.field { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.field--narrow { max-width: 220px; }
+.field label, .label {
+  font: 600 12.5px/1.2 var(--font-display);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hint { margin: 0; font-size: 13.5px; line-height: 1.4; color: var(--muted); max-width: 78ch; }
+
+/* Tableaux */
+.table-wrap { overflow-x: auto; }
+table.loads, table.nomen { width: 100%; border-collapse: collapse; }
+table.loads { min-width: 900px; }
+table.nomen { min-width: 860px; }
+.loads th, .nomen th {
+  padding: 0 8px 10px;
+  border-bottom: 2px solid var(--ink);
+  text-align: left;
+  white-space: nowrap;
+  font: 600 12.5px/1.2 var(--font-display);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+th.r, td.r { text-align: right; }
+.loads tbody td, .nomen tbody td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.loads th:first-child, .loads td:first-child, .nomen th:first-child, .nomen td:first-child { padding-left: 0; }
+.loads th:last-child, .loads td:last-child, .nomen th:last-child, .nomen td:last-child { padding-right: 0; }
+.w-qty { width: 64px; } .w-w { width: 108px; } .w-pk { width: 108px; } .w-h { width: 116px; } .w-e { width: 108px; }
+.w-pct { width: 176px; } .w-u { width: 126px; } .w-del { width: 40px; }
+.loads output, .nomen output { font: 500 15.5px/1.2 var(--font-body); font-variant-numeric: tabular-nums; }
+.loads output { white-space: nowrap; }
+.c-total { text-align: right; }
+.pct { display: grid; grid-template-columns: 6.6ch minmax(36px, 1fr); align-items: center; gap: 10px; }
+.pct output { text-align: right; }
+.pct-bar { height: 6px; }
+.pct-bar i { display: block; height: 100%; width: 0; background: var(--muted); border-radius: 0 3px 3px 0; transition: width .25s ease; }
+.volt { display: flex; align-items: center; gap: 8px; }
+.volt svg { flex: none; width: 18px; height: 12px; color: var(--muted); }
+.icon-btn {
+  width: 34px; height: 34px;
+  display: inline-grid; place-items: center;
+  font: 500 20px/1 var(--font-body);
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.icon-btn:hover { color: var(--bad); border-color: var(--line); background: var(--field); }
+.loads tfoot td { padding: 16px 8px 0; }
+.foot-label {
+  text-align: right;
+  font: 600 15px/1.2 var(--font-display);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.total-chip {
+  display: inline-block;
+  padding: 5px 10px;
+  background: var(--plate);
+  color: var(--plate-ink);
+  font: 600 19px/1.2 var(--font-body) !important;
+}
+.foot-note { font-size: 13.5px; color: var(--muted); line-height: 1.35; }
+.nomen .w-i { width: 120px; } .nomen .w-len { width: 132px; } .nomen .w-fz { width: 132px; } .nomen .w-sec { width: 110px; }
+.nomen .w-du { width: 84px; } .nomen .w-sum { width: 128px; }
+.nomen .key-cell { font-weight: 600; }
+.nomen .is-over { color: var(--bad); font-weight: 600; }
+.nomen .flag { display: block; font-size: 12.5px; color: var(--muted); }
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.toolbar .spacer { flex: 1 1 0; }
+.btn {
+  font: 600 15px/1 var(--font-display);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  padding: 11px 14px;
+  color: var(--surface);
+  background: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.btn:hover { background: var(--plate); color: var(--plate-ink); border-color: var(--plate-ink); }
+.btn--quiet { color: var(--ink); background: transparent; border-color: var(--line); }
+.btn--quiet:hover { background: var(--field); color: var(--ink); border-color: var(--ink); }
+.toolbar select {
+  width: 250px;
+  max-width: 100%;
+  padding: 10px 30px 10px 12px;
+  border-width: 2px;
+  font: 600 15px/1 var(--font-display);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14.5px; }
+#copy-fallback, #export-fallback { display: flex; flex-direction: column; gap: 6px; }
+#copy-fallback textarea, #export-fallback textarea { min-height: 120px; overflow: auto; font: 400 13px/1.4 var(--font-tech); white-space: pre; }
+
+/* Projet : nom, import, export, impression */
+.project { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-top: 8px; }
+.project .field { flex: 1 1 240px; max-width: 420px; }
+.project input[type="text"] { padding: 9px 10px; border-width: 2px; }
+#io-status .btn { padding: 8px 11px; font-size: 13.5px; }
+.print-only { display: none; }
+
+/* Résultats */
+.results { margin: 0; display: flex; flex-direction: column; border-top: 2px solid var(--ink); }
+.res { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.res dt { color: var(--muted); font-size: 15px; flex: 1 1 auto; }
+.res dd { margin: 0; flex: 0 1 auto; text-align: right; font: 500 16px/1.25 var(--font-body); font-variant-numeric: tabular-nums; }
+.res--key dt { color: var(--ink); font-weight: 600; }
+.res--key dd { padding: 3px 9px; background: var(--plate); color: var(--plate-ink); font-size: 21px; font-weight: 600; white-space: nowrap; }
+
+/* États : forme + libellé, la couleur ne porte jamais seule l'information */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  border: 1.5px solid var(--line);
+  border-radius: 2px;
+  color: var(--ink);
+  font: 600 13px/1 var(--font-display);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.pill::before { content: ""; flex: none; width: 9px; height: 9px; background: var(--muted); }
+.pill--ok::before { background: var(--ok); border-radius: 50%; }
+.pill--serious::before { background: var(--serious); transform: rotate(45deg); }
+.pill--bad::before { background: var(--bad); }
+.plate .pill { border-color: var(--plate-ink); color: var(--plate-ink); }
+.plate .pill::before { background: var(--plate-ink); }
+.plate .pill--bad { background: var(--plate-ink); color: var(--plate); }
+.plate .pill--bad::before { background: var(--plate); }
+
+.meter-wrap { display: flex; flex-direction: column; gap: 6px; }
+.meter-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.meter { --tone: var(--ok); height: 8px; border-radius: 4px; overflow: hidden; background: color-mix(in srgb, var(--tone) 22%, var(--surface)); }
+.meter i { display: block; height: 100%; width: 0; border-radius: 4px; background: var(--tone); transition: width .25s ease; }
+.meter-scale { display: flex; justify-content: space-between; font: 500 12px/1.2 var(--font-tech); color: var(--muted); }
+
+/* Recharge par saison */
+.seasons { display: flex; flex-direction: column; }
+.season-head, .season {
+  display: grid;
+  grid-template-columns: 82px 112px minmax(150px, 1fr) 92px 118px;
+  gap: 14px;
+  align-items: center;
+}
+.season-head {
+  padding-bottom: 9px;
+  border-bottom: 2px solid var(--ink);
+  font: 600 12.5px/1.2 var(--font-display);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.season { padding: 13px 0; border-bottom: 1px solid var(--line); }
+.season-name { font: 600 17px/1.1 var(--font-display); letter-spacing: .06em; text-transform: uppercase; }
+.season .r, .season-head .r { text-align: right; justify-self: end; }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.legend--text { font: 600 12.5px/1.2 var(--font-display); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.key--solar { background: var(--solar); }
+.key--drive { background: var(--drive); }
+.key--ref { width: 2px; height: 14px; border-radius: 0; background: var(--ink); }
+.key--pos, .key--neg, .key--ac { width: 22px; height: 3px; border-radius: 0; }
+.key--pos { background: var(--pos); }
+.key--neg { background: var(--ink); }
+.key--ac { background: var(--drive); }
+.key--fuse { width: 22px; height: 10px; border-radius: 0; border: 1.5px solid var(--ink); background: var(--surface); }
+.season-chart { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.bar { position: relative; padding: 5px 0; border-left: 1px solid var(--line); }
+.bar-marks { display: flex; gap: 2px; height: 14px; }
+.seg { display: block; height: 100%; min-width: 0; transition: width .25s ease; }
+.seg--solar { background: var(--solar); }
+.seg--drive { background: var(--drive); }
+.seg.is-end { border-radius: 0 4px 4px 0; }
+.ref { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--ink); transition: left .25s ease; }
+.bar-values { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.season-net output { font: 500 16px/1.2 var(--font-body); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tip {
+  position: absolute;
+  z-index: 10;
+  transform: translate(-50%, -100%);
+  padding: 6px 9px;
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--surface);
+  font: 500 13px/1.3 var(--font-body);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Protections */
+.duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px; }
+.sub { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+
+/* Schéma de câblage */
+.schema { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.schema-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 3px; background: var(--bg); }
+.schema svg { display: block; width: 100%; min-width: 980px; height: auto; }
+.schema figcaption { font-size: 13.5px; line-height: 1.4; color: var(--muted); max-width: 86ch; }
+.sch-box { fill: var(--field); stroke: var(--ink); stroke-width: 1.5; }
+.sch-group { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
+.sch-t { font: 600 13px var(--font-body); fill: var(--ink); }
+.sch-s { font: 500 11.5px var(--font-body); fill: var(--muted); }
+.sch-n { font: 500 12px var(--font-body); fill: var(--ink); }
+.sch-l { font: 600 11.5px var(--font-body); fill: var(--ink); text-anchor: middle; font-variant-numeric: tabular-nums; }
+.sch-cap { font: 600 12px var(--font-display); letter-spacing: .09em; fill: var(--muted); }
+.sch-w { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.sch-pos { stroke: var(--pos); }
+.sch-neg { stroke: var(--ink); stroke-width: 2; }
+.sch-ac { stroke: var(--drive); }
+.sch-fuse { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
+.sch-rail-pos { fill: var(--pos); }
+.sch-rail-neg { fill: var(--ink); }
+.sch-dot { fill: var(--pos); }
+.sch-dot-ac { fill: var(--drive); }
+
+/* Pied */
+.notes { display: flex; flex-direction: column; gap: 10px; color: var(--muted); font-size: 14px; }
+.notes ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; max-width: 86ch; }
+.notes p { margin: 0; }
+#save-status { font: 500 12.5px/1.4 var(--font-tech); }
+
+@media screen and (max-width: 980px) {
+  .span-5, .span-7 { grid-column: span 12; }
+  .duo { grid-template-columns: 1fr; }
+}
+@media screen and (max-width: 860px) {
+  .plate { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .readout:nth-child(3) { border-left: 0; }
+  .readout:nth-child(n+3) { border-top: 2px solid var(--plate-ink); }
+}
+@media screen and (max-width: 720px) {
+  .page { padding: 24px 16px 44px; }
+  .block { padding: 18px 16px 20px; }
+  table.loads { display: block; min-width: 0; }
+  .loads thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .loads tbody { display: block; border-top: 2px solid var(--ink); }
+  .loads tbody tr {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .loads tbody td { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 0; border: 0; text-align: left; }
+  .loads tbody td::before {
+    content: attr(data-label);
+    font: 600 11.5px/1.2 var(--font-display);
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .c-name { grid-column: 1 / 4; grid-row: 1; }
+  .c-del { grid-column: 4; grid-row: 1; align-items: flex-end; justify-content: flex-end; }
+  .loads tbody td.c-del::before { content: none; }
+  .c-qty { grid-column: 1; grid-row: 2; }
+  .c-w { grid-column: 2; grid-row: 2; }
+  .c-pk { grid-column: 3; grid-row: 2; }
+  .c-h { grid-column: 4; grid-row: 2; }
+  .c-u { grid-column: 1 / 3; grid-row: 3; }
+  .c-total { grid-column: 3; grid-row: 3; }
+  .c-pct { grid-column: 4; grid-row: 3; }
+  .pct { grid-template-columns: 1fr; gap: 4px; }
+  .pct output { text-align: left; }
+  .volt svg { display: none; }
+  .loads tfoot, .loads tfoot tr { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .loads tfoot td { display: block; padding: 14px 0 0; }
+  .foot-label { text-align: left; }
+  .season-head { display: none; }
+  .seasons { border-top: 2px solid var(--ink); }
+  .season { grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .season-chart { grid-column: 1 / -1; }
+  .season .r { justify-self: start; text-align: left; }
+  .season-net, .season-auto { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .season-net::before, .season-auto::before {
+    content: attr(data-label);
+    font: 600 11.5px/1.2 var(--font-display);
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+}
+@media screen and (max-width: 440px) {
+  .plate { grid-template-columns: 1fr; }
+  .readout { border-left: 0; }
+  .readout + .readout { border-top: 2px solid var(--plate-ink); }
+  .loads tbody tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .loads tbody td.c-name { grid-column: 1 / -1; grid-row: 1; padding-right: 44px; }
+  .c-del { grid-column: 2; grid-row: 1; }
+  .c-qty { grid-column: 1; grid-row: 2; }
+  .c-u { grid-column: 2; grid-row: 2; }
+  .c-w { grid-column: 1; grid-row: 3; }
+  .c-pk { grid-column: 2; grid-row: 3; }
+  .c-h { grid-column: 1; grid-row: 4; }
+  .c-total { grid-column: 2; grid-row: 4; }
+  .c-pct { grid-column: 1 / -1; grid-row: 5; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* Impression : A4 paysage, encre sur blanc, valeurs à la place des champs.
+   La plaque jaune et les couleurs du schéma sont conservées. */
+@page { size: A4 landscape; margin: 11mm 12mm; }
+@media print {
+  :root, :root:not([data-theme="light"]), :root[data-theme="dark"] {
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --field: #FFFFFF;
+    --ink: #171C1E;
+    --muted: #4A5357;
+    --line: #B4BBB7;
+    --ok: #0CA30C;
+    --serious: #D9662F;
+    --bad: #D03B3B;
+    --solar: #EDA100;
+    --drive: #2A78D6;
+    --pos: #C8321E;
+    color-scheme: light;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  * { transition: none !important; }
+  body { font-size: 12.5px; line-height: 1.4; }
+  /* Blocs en flux normal : les conteneurs flex et grid se coupent mal entre deux pages */
+  .page { display: block; max-width: none; padding: 0; }
+  .page > * + * { margin-top: 14px; }
+  .no-print, .toolbar, #copy-fallback, .tip, #save-status, .lede, .c-del, .loads th.w-del, .c-name textarea,
+  .block--schema .block-head p { display: none !important; }
+  .print-only { display: block; }
+
+  .masthead { gap: 6px; }
+  h1 { font-size: 30px; }
+  .print-meta { margin: 0; font: 600 15px/1.3 var(--font-body); }
+  .readout { padding: 10px 14px 12px; gap: 4px; }
+  .readout-value { font-size: 28px; }
+  .readout-value small { font-size: 13px; }
+  .readout-label, .readout-sub { font-size: 12px; }
+  .block { display: block; padding: 14px 16px 16px; }
+  .block > * + * { margin-top: 12px; }
+  .grid { gap: 14px; }
+  h2 { font-size: 20px; }
+  h3 { font-size: 15px; }
+  .block-head p, .hint, .foot-note, .notes, .schema figcaption { font-size: 12px; }
+  .hint, .block-head p, .schema figcaption { max-width: none; }
+  .pill { font-size: 12px; padding: 4px 7px; }
+
+  /* Les champs deviennent du texte */
+  input[type="text"], select, textarea {
+    border: 0; border-radius: 0; padding: 0; background: none;
+    font-size: 12.5px; color: var(--ink);
+  }
+  input::placeholder { color: var(--ink); opacity: 1; }
+  [aria-invalid="true"] { box-shadow: none; text-decoration: underline wavy var(--bad); }
+  .fields { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 14px; }
+  .field .unit-field { justify-content: flex-start; }
+  .field input.num { flex: 0 1 auto; width: auto; max-width: 8ch; text-align: left; field-sizing: content; }
+  .field label, .label, .loads th, .nomen th, .season-head, .legend--text { font-size: 12px; }
+
+  table.loads, table.nomen { min-width: 0; }
+  .table-wrap, .schema-scroll { overflow: visible; }
+  .loads tbody td, .nomen tbody td { padding: 4px 8px; }
+  .loads output, .nomen output { font-size: 12.5px; }
+  .w-qty { width: 40px; } .w-w, .w-pk, .w-e { width: 92px; } .w-h { width: 96px; } .w-pct { width: 150px; } .w-u { width: 78px; }
+  .nomen .w-i { width: 100px; } .nomen .w-len, .nomen .w-fz { width: 84px; } .nomen .w-sec { width: 96px; } .nomen .w-du { width: 76px; } .nomen .w-sum { width: 112px; }
+  .loads tfoot td { padding-top: 10px; }
+  .total-chip { font-size: 15px !important; }
+  .res { padding: 5px 0; }
+  .res dt, .res dd { font-size: 12.5px; }
+  .res--key dd { font-size: 16px; }
+  .season-head, .season { grid-template-columns: 70px 78px minmax(110px, 1fr) 78px 104px; gap: 10px; }
+  .season { padding: 6px 0; }
+  .season-name { font-size: 14px; }
+  .season-net output { font-size: 13px; }
+  .bar-values { font-size: 12px; }
+  .duo { gap: 22px; }
+  .schema-scroll { border-color: var(--line); }
+  .schema svg { min-width: 0; max-height: 152mm; }
+
+  /* Coupures de page : le schéma ouvre toujours une page, la nomenclature suit à la ligne */
+  .plate, .readout, .block--compact, .sub, .season, .res, .field, .schema, .meter-wrap, tr { break-inside: avoid; }
+  .block-head, h2, h3, .legend, .field--narrow { break-after: avoid; }
+  .block { -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .block--schema { break-before: page; margin-top: 0; }
+  thead { display: table-header-group; }
+  .notes { break-inside: avoid; gap: 6px; }
+  .notes ul { display: block; max-width: none; columns: 2; column-gap: 32px; }
+  .notes li { break-inside: avoid; margin-bottom: 3px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <p class="eyebrow" id="eyebrow">Bilan de puissance · parc 12 V · LiFePO4</p>
+    <h1>Dimensionnement électrique du van</h1>
+    <p class="lede">La liste des appareils donne la consommation. Le reste en découle : capacité de batterie, recharge selon la saison, convertisseur, fusibles, sections de câble et schéma de câblage.</p>
+    <p class="print-only print-meta" id="print-meta"></p>
+    <div class="project no-print">
+      <div class="field">
+        <label for="proj-name">Nom du projet</label>
+        <input id="proj-name" type="text" maxlength="80" autocomplete="off" placeholder="Projet sans nom">
+      </div>
+      <button type="button" class="btn btn--quiet" id="import">Importer</button>
+      <button type="button" class="btn btn--quiet" id="export">Exporter (JSON)</button>
+      <button type="button" class="btn" id="print">Imprimer / PDF</button>
+      <input type="file" id="import-file" accept=".json,application/json" hidden>
+    </div>
+    <div class="confirm no-print" id="io-status" role="status" hidden></div>
+    <div id="export-fallback" class="no-print" hidden>
+      <label class="label" for="export-text">Téléchargement bloqué par le navigateur. Copier ce texte dans un fichier .json :</label>
+      <textarea id="export-text" readonly></textarea>
+    </div>
+  </header>
+
+  <section class="plate" aria-label="Résultats principaux">
+    <div class="readout">
+      <span class="readout-label">Consommation journalière</span>
+      <span class="readout-value"><output id="k-conso">640</output><small>Wh/j</small></span>
+      <span class="readout-sub" id="k-conso-sub"></span>
+    </div>
+    <div class="readout">
+      <span class="readout-label">Batterie conseillée</span>
+      <span class="readout-value"><output id="k-batt">150</output><small>Ah</small></span>
+      <span class="readout-sub" id="k-batt-sub"></span>
+    </div>
+    <div class="readout">
+      <span class="readout-label">Autonomie sans recharge</span>
+      <span class="readout-value"><output id="k-auto">1,6</output><small>jours</small></span>
+      <span class="readout-sub" id="k-auto-sub"></span>
+      <span class="pill" id="k-auto-pill"></span>
+    </div>
+    <div class="readout">
+      <span class="readout-label">Bilan en hiver</span>
+      <span class="readout-value"><output id="k-winter">−88</output><small>Wh/j</small></span>
+      <span class="readout-sub" id="k-winter-sub"></span>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="h-loads">
+    <div class="block-head">
+      <span class="step">01</span>
+      <h2 id="h-loads">Appareils</h2>
+      <p>Chaque case se modifie. Puissance : la moyenne en marche, qui sert au bilan d'énergie. Pointe : la puissance maximale réellement appelée (compresseur, démarrage), qui sert aux fusibles et aux câbles. Pointe vide = identique à la puissance.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="loads">
+        <thead>
+          <tr>
+            <th class="w-qty" scope="col">Nb</th>
+            <th scope="col">Appareil</th>
+            <th class="w-w" scope="col">Puissance</th>
+            <th class="w-pk" scope="col">Pointe</th>
+            <th class="w-h" scope="col">Heures/jour</th>
+            <th class="w-e r" scope="col">Total (Wh/j)</th>
+            <th class="w-pct" scope="col">% d'utilisation</th>
+            <th class="w-u" scope="col">Tension</th>
+            <th class="w-del" scope="col"><span class="sr">Supprimer</span></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="5" class="foot-label">Consommation journalière</td>
+            <td class="r"><output id="t-total" class="total-chip">640 Wh/j</output></td>
+            <td colspan="3" class="foot-note" id="t-note"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="toolbar">
+      <button type="button" class="btn" id="add-row">+ Ajouter une ligne</button>
+      <label class="sr" for="preset">Ajouter un appareil type</label>
+      <select id="preset"></select>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--quiet" id="copy">Copier le tableau</button>
+      <button type="button" class="btn btn--quiet" id="reset">Réinitialiser</button>
+      <span class="confirm" id="reset-confirm" hidden>
+        Revenir à la liste de départ ?
+        <button type="button" class="btn" id="reset-yes">Oui, réinitialiser</button>
+        <button type="button" class="btn btn--quiet" id="reset-no">Annuler</button>
+      </span>
+    </div>
+    <div id="copy-fallback" hidden>
+      <label class="label" for="copy-text">Copie bloquée par le navigateur. Sélectionner et copier ce texte :</label>
+      <textarea id="copy-text" readonly></textarea>
+    </div>
+  </section>
+
+  <div class="grid">
+
+    <section class="block block--compact span-5" aria-labelledby="h-batt">
+      <div class="block-head">
+        <span class="step">02</span>
+        <h2 id="h-batt">Batterie</h2>
+      </div>
+      <div class="fields">
+        <div class="field">
+          <label for="s-chem">Technologie</label>
+          <select id="s-chem" data-s="chem">
+            <option value="lfp">LiFePO4</option>
+            <option value="agm">AGM</option>
+            <option value="gel">Gel</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="s-dod">Décharge utilisable</label>
+          <span class="unit-field"><input id="s-dod" class="num" type="text" inputmode="decimal" data-s="dod" autocomplete="off"><span class="unit">%</span></span>
+        </div>
+        <div class="field">
+          <label for="s-days">Autonomie visée</label>
+          <span class="unit-field"><input id="s-days" class="num" type="text" inputmode="decimal" data-s="days" autocomplete="off"><span class="unit">jours</span></span>
+        </div>
+        <div class="field">
+          <label for="s-cap">Batterie installée</label>
+          <span class="unit-field"><input id="s-cap" class="num" type="text" inputmode="decimal" data-s="cap" autocomplete="off"><span class="unit">Ah</span></span>
+        </div>
+      </div>
+      <p class="hint">Autonomie visée : nombre de jours à tenir sans aucune recharge. Décharge utilisable : 80 % en LiFePO4, 50 % au plomb pour préserver la durée de vie.</p>
+      <dl class="results">
+        <div class="res"><dt>Énergie à installer</dt><dd id="b-need-wh"></dd></div>
+        <div class="res"><dt>Capacité minimale calculée</dt><dd id="b-need-ah"></dd></div>
+        <div class="res res--key"><dt>Taille du commerce au-dessus</dt><dd id="b-std"></dd></div>
+        <div class="res"><dt>Utilisable dans la batterie installée</dt><dd id="b-usable"></dd></div>
+      </dl>
+      <div class="meter-wrap">
+        <div class="meter-top">
+          <span class="label">Batterie installée face à l'objectif</span>
+          <span class="pill" id="b-pill"></span>
+        </div>
+        <div class="meter" id="b-meter" role="img" aria-label=""><i></i></div>
+        <div class="meter-scale"><span>0 j</span><span id="b-meter-end"></span></div>
+      </div>
+    </section>
+
+    <section class="block block--compact span-7" aria-labelledby="h-charge">
+      <div class="block-head">
+        <span class="step">03</span>
+        <h2 id="h-charge">Recharge</h2>
+      </div>
+      <div class="fields">
+        <div class="field">
+          <label for="s-wc">Panneau solaire</label>
+          <span class="unit-field"><input id="s-wc" class="num" type="text" inputmode="decimal" data-s="wc" autocomplete="off"><span class="unit">Wc</span></span>
+        </div>
+        <div class="field">
+          <label for="s-pveff">Rendement solaire</label>
+          <span class="unit-field"><input id="s-pveff" class="num" type="text" inputmode="decimal" data-s="pvEff" autocomplete="off"><span class="unit">%</span></span>
+        </div>
+        <div class="field">
+          <label for="s-dcdc">Chargeur DC-DC</label>
+          <span class="unit-field"><input id="s-dcdc" class="num" type="text" inputmode="decimal" data-s="dcdc" autocomplete="off"><span class="unit">A</span></span>
+        </div>
+        <div class="field">
+          <label for="s-drive">Roulage moyen</label>
+          <span class="unit-field"><input id="s-drive" class="num" type="text" inputmode="decimal" data-s="drive" autocomplete="off"><span class="unit">h/j</span></span>
+        </div>
+      </div>
+      <p class="hint no-print">Rendement solaire : pertes du régulateur, des câbles, de la chaleur et des ombres. Un panneau pliable ne produit que lorsqu'il est déployé : baisser ce chiffre en proportion.</p>
+
+      <div class="legend legend--text">
+        <span><i class="key key--solar"></i>Solaire</span>
+        <span><i class="key key--drive"></i>Roulage</span>
+        <span><i class="key key--ref"></i>Consommation</span>
+      </div>
+      <div class="seasons" id="seasons">
+        <div class="season-head">
+          <span>Saison</span>
+          <span>Soleil</span>
+          <span>Recharge par jour</span>
+          <span class="r">Bilan</span>
+          <span class="r">Autonomie</span>
+        </div>
+        <div class="season" data-k="ete">
+          <span class="season-name">Été</span>
+          <span class="unit-field"><input id="hsp-ete" class="num" type="text" inputmode="decimal" data-s="hsp.ete" autocomplete="off" aria-label="Ensoleillement en été, en heures équivalentes par jour"><span class="unit">h/j</span></span>
+          <div class="season-chart">
+            <div class="bar"><div class="bar-marks"><i class="seg seg--solar" tabindex="0"></i><i class="seg seg--drive" tabindex="0"></i></div><i class="ref"></i></div>
+            <span class="bar-values" data-o="vals"></span>
+          </div>
+          <span class="season-net r" data-label="Bilan"><output data-o="net"></output></span>
+          <span class="season-auto r" data-label="Autonomie"><span class="pill" data-o="auto"></span></span>
+        </div>
+        <div class="season" data-k="mi">
+          <span class="season-name">Mi-saison</span>
+          <span class="unit-field"><input id="hsp-mi" class="num" type="text" inputmode="decimal" data-s="hsp.mi" autocomplete="off" aria-label="Ensoleillement en mi-saison, en heures équivalentes par jour"><span class="unit">h/j</span></span>
+          <div class="season-chart">
+            <div class="bar"><div class="bar-marks"><i class="seg seg--solar" tabindex="0"></i><i class="seg seg--drive" tabindex="0"></i></div><i class="ref"></i></div>
+            <span class="bar-values" data-o="vals"></span>
+          </div>
+          <span class="season-net r" data-label="Bilan"><output data-o="net"></output></span>
+          <span class="season-auto r" data-label="Autonomie"><span class="pill" data-o="auto"></span></span>
+        </div>
+        <div class="season" data-k="hiver">
+          <span class="season-name">Hiver</span>
+          <span class="unit-field"><input id="hsp-hiver" class="num" type="text" inputmode="decimal" data-s="hsp.hiver" autocomplete="off" aria-label="Ensoleillement en hiver, en heures équivalentes par jour"><span class="unit">h/j</span></span>
+          <div class="season-chart">
+            <div class="bar"><div class="bar-marks"><i class="seg seg--solar" tabindex="0"></i><i class="seg seg--drive" tabindex="0"></i></div><i class="ref"></i></div>
+            <span class="bar-values" data-o="vals"></span>
+          </div>
+          <span class="season-net r" data-label="Bilan"><output data-o="net"></output></span>
+          <span class="season-auto r" data-label="Autonomie"><span class="pill" data-o="auto"></span></span>
+        </div>
+      </div>
+      <p class="hint" id="c-worst"></p>
+      <p class="hint no-print">Soleil : heures équivalentes de plein soleil par jour, panneau à plat. Les valeurs de départ sont des ordres de grandeur pour les Alpes du Nord, à remplacer par celles du lieu de séjour.</p>
+    </section>
+  </div>
+
+    <section class="block block--compact span-12" aria-labelledby="h-prot">
+      <div class="block-head">
+        <span class="step">04</span>
+        <h2 id="h-prot">Convertisseur et ligne batterie</h2>
+      </div>
+      <div class="duo">
+        <div class="sub">
+          <h3>Convertisseur 230 V</h3>
+          <div class="field field--narrow">
+            <label for="s-inveff">Rendement</label>
+            <span class="unit-field"><input id="s-inveff" class="num" type="text" inputmode="decimal" data-s="invEff" autocomplete="off"><span class="unit">%</span></span>
+          </div>
+          <dl class="results">
+            <div class="res"><dt>Puissance 230 V simultanée, pointes comprises</dt><dd id="p-230"></dd></div>
+            <div class="res res--key"><dt>Convertisseur conseillé</dt><dd id="p-inv"></dd></div>
+          </dl>
+          <p class="hint" id="p-inv-note"></p>
+        </div>
+        <div class="sub">
+          <h3>Ligne batterie</h3>
+          <dl class="results">
+            <div class="res"><dt>Courant de décharge, tout allumé</dt><dd id="p-idis"></dd></div>
+            <div class="res"><dt>Courant de charge, solaire et DC-DC</dt><dd id="p-ichg"></dd></div>
+            <div class="res res--key"><dt>Fusible principal</dt><dd id="p-fuse"></dd></div>
+          </dl>
+          <p class="hint">Un fusible protège le câble : son calibre reste inférieur à l'intensité admissible du câble qu'il protège, et il se pose au plus près de la batterie.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block block--schema span-12" aria-labelledby="h-schema">
+      <div class="block-head">
+        <span class="step">05</span>
+        <h2 id="h-schema">Schéma de câblage</h2>
+        <p>Généré depuis la liste : un circuit protégé par appareil 12 V, un convertisseur dès qu'un appareil 230 V apparaît. Fusibles et sections se recalculent avec les longueurs saisies dans la nomenclature.</p>
+      </div>
+      <div class="legend legend--text">
+        <span><i class="key key--pos"></i>Positif 12 V</span>
+        <span><i class="key key--neg"></i>Négatif</span>
+        <span><i class="key key--ac"></i>230 V alternatif</span>
+        <span><i class="key key--fuse"></i>Fusible</span>
+      </div>
+      <figure class="schema">
+        <div class="schema-scroll" id="schema" tabindex="0" aria-label="Schéma de câblage, défilement horizontal"></div>
+        <figcaption id="schema-cap">Schéma unifilaire : seuls les positifs sont tracés jusqu'aux appareils. Chaque appareil revient à la barre négative par un câble de même section que son positif.</figcaption>
+      </figure>
+
+      <h3>Nomenclature des liaisons</h3>
+      <div class="field field--narrow">
+        <label for="s-drop">Chute de tension admise</label>
+        <span class="unit-field"><input id="s-drop" class="num" type="text" inputmode="decimal" data-s="drop" autocomplete="off"><span class="unit">%</span></span>
+      </div>
+      <div class="table-wrap">
+        <table class="nomen">
+          <thead>
+            <tr>
+              <th scope="col">Liaison</th>
+              <th class="w-i r" scope="col">Intensité max</th>
+              <th class="w-len" scope="col">Longueur aller</th>
+              <th class="w-fz" scope="col">Fusible</th>
+              <th class="w-sec r" scope="col">Section</th>
+              <th class="w-du r" scope="col">Chute</th>
+              <th class="w-sum r" scope="col">Chute cumulée</th>
+            </tr>
+          </thead>
+          <tbody id="nomen"></tbody>
+        </table>
+      </div>
+      <p class="hint no-print">Longueur aller : la distance entre les deux points, le retour est déjà compté dans le calcul. Fusible : calculé à 125 % de l'intensité ; saisir le calibre imposé par le fabricant quand il existe, la section suit. Sans fusible sur la liaison du panneau quand il est seul.</p>
+      <p class="hint">Chute : celle de la liaison seule, à son intensité max. Chute cumulée : de la batterie de service jusqu'au bout de la liaison, tout allumé pour les appareils et le convertisseur, à pleine charge pour le régulateur et le chargeur DC-DC. Le panneau et la batterie moteur sont en amont de leur chargeur : seule leur propre liaison compte.</p>
+    </section>
+
+
+  <footer class="notes">
+    <h3>Hypothèses de calcul</h3>
+    <ul>
+      <li>Total d'une ligne = nombre × puissance × heures par jour. Les appareils 230 V sont majorés des pertes du convertisseur.</li>
+      <li>Ah = Wh ÷ tension nominale du parc : 12,8 V en LiFePO4, 12 V au plomb.</li>
+      <li>Capacité de batterie = consommation × jours d'autonomie ÷ décharge utilisable.</li>
+      <li>Production solaire = puissance crête × heures d'ensoleillement équivalent × rendement. Recharge en roulant = courant du chargeur × tension × heures de roulage.</li>
+      <li>Fusible = calibre normalisé au-dessus de 125 % de l'intensité. Longueur = aller simple, le retour est compté dans la formule. Section = 2 × ρ × longueur × intensité ÷ chute de tension, avec ρ = 0,0225 Ω·mm²/m pour le cuivre en service, puis contrôle de l'intensité admissible face au fusible. Le chargeur DC-DC est compté 20 % plus gourmand à l'entrée qu'à la sortie, le panneau à 18 V.</li>
+      <li>La chute admise dimensionne chaque liaison séparément. La chute cumulée additionne les liaisons traversées depuis la batterie de service ; elle est signalée quand elle dépasse la chute admise, sans modifier la section calculée.</li>
+      <li>Valeurs indicatives : la notice de chaque appareil et la fiche du câble font foi.</li>
+    </ul>
+    <p id="save-status" role="status"></p>
+  </footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(function () {
+'use strict';
+
+/* ---------- Données de référence ---------- */
+var LS_KEY = 'van-elec-v1';
+var RHO = 0.0225; /* Ω·mm²/m, cuivre en service */
+var CHEM = {
+  lfp: { label: 'LiFePO4', v: 12.8, dod: 80, sizes: [50, 100, 150, 200, 230, 280, 300, 400, 460, 560, 600] },
+  agm: { label: 'AGM', v: 12, dod: 50, sizes: [60, 80, 100, 120, 140, 165, 200, 220, 260, 300, 400] },
+  gel: { label: 'Gel', v: 12, dod: 50, sizes: [60, 80, 100, 120, 140, 165, 200, 220, 260, 300, 400] }
+};
+var FUSES = [3, 5, 7.5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100, 125, 150, 175, 200, 250, 300, 400, 500];
+var BLADE = [3, 5, 7.5, 10, 15, 20, 25, 30, 40];
+/* [section mm², intensité admissible prudente A] */
+var SECTIONS = [[1.5, 10], [2.5, 16], [4, 25], [6, 32], [10, 45], [16, 63], [25, 80], [35, 105], [50, 150], [70, 210], [95, 285], [120, 350]];
+var INVERTERS = [150, 300, 500, 800, 1200, 1600, 2000, 3000, 5000];
+var MPPT = [10, 15, 20, 30, 35, 45, 50, 60, 70, 85, 100];
+var SEASONS = [['ete', 'été'], ['mi', 'mi-saison'], ['hiver', 'hiver']];
+var LINE_LEN = { pv: 5, mppt: 1, alt: 5, dcdc: 1, batt: 1, box: 1, inv: 1 };
+var DEFAULT_ROWS = [
+  { qty: 1, name: 'Chauffage diesel (type Autoterm / Webasto)', w: 30, pk: null, h: 3, u: 12, len: 4, fz: 25 },
+  { qty: 1, name: 'Réglette LED', w: 10, pk: null, h: 3, u: 12, len: 4, fz: null },
+  { qty: 4, name: 'Ampoule LED', w: 5, pk: null, h: 4, u: 12, len: 4, fz: null },
+  { qty: 2, name: 'Chargeur USB (tablette, caméra, etc.)', w: 20, pk: null, h: 2, u: 12, len: 4, fz: null },
+  { qty: 1, name: 'Glacière à compression / frigo simple 12 V (moins de 40 litres)', w: 15, pk: 60, h: 24, u: 12, len: 4, fz: null }
+];
+var DEFAULT_S = {
+  chem: 'lfp', dod: 80, days: 2, cap: 100,
+  wc: 200, pvEff: 70, dcdc: 30, drive: 1,
+  hsp: { ete: 5.5, mi: 3.5, hiver: 1.2 },
+  invEff: 90, drop: 3
+};
+/* [nom, puissance W, heures/j, pointe W, fusible fabricant A] */
+var PRESETS = [
+  ['12 V', [
+    ['Chauffage diesel 2 kW', 30, 3, null, 25],
+    ['Glacière à compression (moins de 40 litres)', 15, 24, 60, null],
+    ['Réglette LED', 10, 3, null, null],
+    ['Ampoule LED', 5, 4, null, null],
+    ['Chargeur USB', 20, 2, null, null],
+    ['Recharge des instruments de vol (vario, GPS, radio)', 10, 2, null, null],
+    ['Ventilateur 12 V', 15, 4, null, null],
+    ['Pompe à eau', 40, 0.2, null, null],
+    ['Routeur 4G/5G', 10, 6, null, null],
+    ['Convertisseur 230 V, consommation à vide', 10, 4, null, null],
+    ['Batterie auto-chauffante, résistance de chauffe', 50, 1, null, null]
+  ]],
+  ['230 V', [
+    ['Ordinateur portable', 65, 2, null, null],
+    ['Chargeur d\'appareil photo ou de drone', 50, 1.5, null, null],
+    ['Chargeur de vélo électrique', 150, 3, null, null],
+    ['Bouilloire', 1000, 0.1, null, null],
+    ['Machine à café', 1200, 0.1, null, null]
+  ]]
+];
+
+/* ---------- Outils ---------- */
+function $(sel, root) { return (root || document).querySelector(sel); }
+function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+function clamp(n, lo, hi) { return Math.min(hi, Math.max(lo, n)); }
+function uid() { return 'r' + Math.random().toString(36).slice(2, 9); }
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (ch) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+  });
+}
+function nf(n, d) {
+  if (!Number.isFinite(n)) return '—';
+  return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: d || 0 });
+}
+function signed(n) {
+  var r = Math.round(n);
+  if (r === 0) return '0';
+  return (r > 0 ? '+' : '−') + nf(Math.abs(r));
+}
+function fmtIn(n) { return n === null || n === undefined ? '' : String(n).replace('.', ','); }
+function parseNum(v) {
+  var n = parseFloat(String(v).replace(/\s/g, '').replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 ? n : NaN;
+}
+function nextStd(list, x) {
+  for (var i = 0; i < list.length; i++) if (list[i] >= x - 1e-9) return list[i];
+  return null;
+}
+function fmtDays(d) {
+  if (!Number.isFinite(d)) return '—';
+  if (d >= 100) return '> 99 j';
+  return nf(d, 1) + ' j';
+}
+function fmtHM(h) {
+  if (!Number.isFinite(h)) return '—';
+  var m = Math.ceil(h * 60 / 5 - 1e-9) * 5;
+  var hh = Math.floor(m / 60), mm = m % 60;
+  if (hh === 0) return mm + ' min';
+  return hh + ' h' + (mm ? ' ' + (mm < 10 ? '0' : '') + mm : '');
+}
+function fmtA(a) { return a === null ? '> 500 A' : nf(a, a < 10 ? 1 : 0) + ' A'; }
+function fmtSec(s) { return s === null ? '> 120 mm²' : nf(s, 1) + ' mm²'; }
+function fmtPct(p) { return Number.isFinite(p) ? p.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %' : '—'; }
+
+/* ---------- État ---------- */
+function defaultLines() {
+  var o = {};
+  Object.keys(LINE_LEN).forEach(function (k) { o[k] = { len: LINE_LEN[k], fz: null }; });
+  return o;
+}
+function defaults() {
+  var s = clone(DEFAULT_S);
+  s.lines = defaultLines();
+  return {
+    v: 1,
+    updatedAt: 0,
+    name: '',
+    rows: DEFAULT_ROWS.map(function (r) { var c = clone(r); c.id = uid(); return c; }),
+    s: s
+  };
+}
+function normalize(raw) {
+  var d = defaults();
+  if (!raw || typeof raw !== 'object' || !Array.isArray(raw.rows)) return d;
+  function num(v, fb) { return (typeof v === 'number' && Number.isFinite(v) && v >= 0) ? v : fb; }
+  function opt(v) { return (typeof v === 'number' && Number.isFinite(v) && v > 0) ? v : null; }
+  var seen = {};
+  var rows = raw.rows.slice(0, 200).map(function (r) {
+    r = r && typeof r === 'object' ? r : {};
+    var id = (typeof r.id === 'string' && /^[a-z0-9]{2,16}$/i.test(r.id) && !seen[r.id]) ? r.id : uid();
+    seen[id] = true;
+    return {
+      id: id,
+      qty: num(r.qty, 1),
+      name: typeof r.name === 'string' ? r.name.slice(0, 120) : '',
+      w: num(r.w, 0),
+      pk: opt(r.pk),
+      h: num(r.h, 0),
+      u: r.u === 230 ? 230 : 12,
+      len: opt(r.len) || 4,
+      fz: opt(r.fz)
+    };
+  });
+  var rs = raw.s && typeof raw.s === 'object' ? raw.s : {};
+  var rh = rs.hsp && typeof rs.hsp === 'object' ? rs.hsp : {};
+  var rl = rs.lines && typeof rs.lines === 'object' ? rs.lines : {};
+  var lines = defaultLines();
+  Object.keys(lines).forEach(function (k) {
+    var x = rl[k] && typeof rl[k] === 'object' ? rl[k] : {};
+    lines[k] = { len: opt(x.len) || lines[k].len, fz: opt(x.fz) };
+  });
+  var s = {
+    chem: CHEM[rs.chem] ? rs.chem : d.s.chem,
+    dod: num(rs.dod, d.s.dod), days: num(rs.days, d.s.days), cap: num(rs.cap, d.s.cap),
+    wc: num(rs.wc, d.s.wc), pvEff: num(rs.pvEff, d.s.pvEff), dcdc: num(rs.dcdc, d.s.dcdc), drive: num(rs.drive, d.s.drive),
+    hsp: { ete: num(rh.ete, d.s.hsp.ete), mi: num(rh.mi, d.s.hsp.mi), hiver: num(rh.hiver, d.s.hsp.hiver) },
+    invEff: num(rs.invEff, d.s.invEff), drop: num(rs.drop, d.s.drop),
+    lines: lines
+  };
+  var name = typeof raw.name === 'string' ? raw.name.replace(/[\r\n\t]+/g, ' ').slice(0, 80) : '';
+  return { v: 1, updatedAt: num(raw.updatedAt, 0), name: name, rows: rows, s: s };
+}
+
+/* ---------- Import / export du projet (fonctions pures) ---------- */
+var APP_ID = 'van-elec';
+function exportPayload(st) {
+  var n = normalize(clone(st));
+  return { app: APP_ID, v: 1, exportedAt: new Date().toISOString(), name: n.name, updatedAt: n.updatedAt, rows: n.rows, s: n.s };
+}
+/* Rend { state } ou { error }. Les valeurs absentes ou aberrantes reprennent les valeurs de départ. */
+function parseImport(text) {
+  var raw;
+  try { raw = JSON.parse(String(text).replace(/^﻿/, '')); }
+  catch (e) { return { error: 'ce fichier n’est pas un JSON lisible.' }; }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { error: 'ce fichier ne contient pas de projet.' };
+  if (raw.app !== undefined && raw.app !== APP_ID) return { error: 'ce fichier vient d’un autre outil.' };
+  if (typeof raw.v === 'number' && raw.v > 1) return { error: 'ce fichier vient d’une version plus récente de l’outil.' };
+  if (!Array.isArray(raw.rows)) return { error: 'ce fichier ne contient pas de liste d’appareils.' };
+  return { state: normalize(raw) };
+}
+function fileName(st, date) {
+  var d = date || new Date();
+  function p2(n) { return (n < 10 ? '0' : '') + n; }
+  var slug = String(st.name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
+  return APP_ID + (slug ? '-' + slug : '') + '-' + d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + '.json';
+}
+
+/* ---------- Calcul (fonctions pures) ---------- */
+function lineSpec(o) {
+  var auto = null;
+  if (!o.noFuse) {
+    var base = Math.max(o.I * 1.25, o.minFuse || 0);
+    auto = nextStd(o.list || FUSES, base);
+    if (auto === null) auto = nextStd(FUSES, base);
+  }
+  var fuse = o.noFuse ? null : (o.fz || auto);
+  var carry = o.noFuse ? o.I * 1.25 : fuse;
+  var sDrop = 2 * RHO * o.len * o.I / (o.drop * o.V);
+  var sec = null;
+  if (carry !== null) {
+    for (var i = 0; i < SECTIONS.length; i++) {
+      if (SECTIONS[i][1] >= carry - 1e-9 && SECTIONS[i][0] >= sDrop - 1e-9) { sec = SECTIONS[i][0]; break; }
+    }
+  }
+  return {
+    id: o.id, label: o.label, I: o.I, len: o.len, noFuse: !!o.noFuse,
+    fuse: fuse, auto: auto, sec: sec, tooBig: carry === null || sec === null,
+    weak: !!(o.fz && o.fz < o.I), V: o.V, carry: carry
+  };
+}
+/* Chute de tension réelle d'une liaison, en % de sa tension, pour un courant donné */
+function dropPct(l, I) {
+  return l && l.sec ? 2 * RHO * l.len * I / (l.sec * l.V) * 100 : NaN;
+}
+function compute(st) {
+  var s = st.s;
+  var chem = CHEM[s.chem] || CHEM.lfp;
+  var vnom = chem.v;
+  var invEff = clamp(s.invEff, 50, 100) / 100;
+  var drop = clamp(s.drop, 0.5, 20) / 100;
+  var e12 = 0, e230 = 0, p12 = 0, p230 = 0;
+  var circuits = [], acLoads = [];
+  var rows = st.rows.map(function (r) {
+    var e = r.qty * r.w * clamp(r.h, 0, 24);
+    var peak = r.qty * Math.max(r.w, r.pk || 0);
+    if (r.u === 230) {
+      e230 += e; p230 += peak;
+      if (r.qty > 0) acLoads.push({ id: r.id, name: r.name, qty: r.qty });
+    } else {
+      e12 += e; p12 += peak;
+      if (r.qty > 0) circuits.push({ id: r.id, name: r.name, qty: r.qty, I: peak / vnom, len: r.len, fz: r.fz });
+    }
+    return { id: r.id, e: e, pct: 0 };
+  });
+  var eList = e12 + e230;
+  var eBatt = e12 + e230 / invEff;
+  rows.forEach(function (r) { r.pct = eList > 0 ? r.e / eList * 100 : 0; });
+
+  var dod = clamp(s.dod, 5, 100) / 100;
+  var needUseful = eBatt * s.days;
+  var needWh = needUseful / dod;
+  var needAh = needWh / vnom;
+  var stdAh = needAh > 0 ? (nextStd(chem.sizes, needAh) || Math.ceil(needAh / 100) * 100) : 0;
+  var usableWh = s.cap * vnom * dod;
+  var autonomy = eBatt > 0 ? usableWh / eBatt : Infinity;
+
+  var pvEff = clamp(s.pvEff, 0, 100) / 100;
+  var driveWh = s.dcdc * vnom * clamp(s.drive, 0, 24);
+  var seasons = SEASONS.map(function (pair) {
+    var k = pair[0];
+    var solar = s.wc * s.hsp[k] * pvEff;
+    var charge = solar + driveWh;
+    var net = charge - eBatt;
+    var perWc = s.hsp[k] * pvEff;
+    return {
+      k: k, label: pair[1], solar: solar, drive: driveWh, charge: charge, net: net,
+      days: net >= -0.5 ? Infinity : usableWh / -net,
+      cover: eBatt > 0 ? charge / eBatt : Infinity,
+      wcNeeded: perWc > 0 ? eBatt / perWc : Infinity
+    };
+  });
+  var driveNeeded = s.dcdc * vnom > 0 ? eBatt / (s.dcdc * vnom) : Infinity;
+
+  var iDis = (p12 + p230 / invEff) / vnom;
+  var iChg = s.dcdc + s.wc / vnom;
+  var iMax = Math.max(iDis, iChg);
+  var inverter = p230 > 0 ? nextStd(INVERTERS, p230 * 1.25) : 0;
+  var mppt = s.wc > 0 ? nextStd(MPPT, s.wc / vnom) : 0;
+
+  /* Liaisons du schéma */
+  var L = s.lines, byId = {}, lines = [];
+  function add(id, label, I, extra) {
+    var o = { id: id, label: label, I: I, len: L[id].len, fz: L[id].fz, V: vnom, list: FUSES, drop: drop };
+    for (var k in extra || {}) o[k] = extra[k];
+    byId[id] = lineSpec(o);
+  }
+  function above(ids) {
+    var m = 0;
+    ids.forEach(function (id) { if (byId[id] && byId[id].fuse) m = Math.max(m, byId[id].fuse); });
+    return m ? m + 0.01 : 0;
+  }
+  if (s.wc > 0) {
+    add('pv', 'Panneau solaire → régulateur MPPT', s.wc / 18, { V: 18, noFuse: true, fz: null });
+    add('mppt', 'Régulateur MPPT → barre +', s.wc / vnom);
+  }
+  if (s.dcdc > 0) {
+    add('alt', 'Batterie moteur → chargeur DC-DC', s.dcdc * 1.2);
+    add('dcdc', 'Chargeur DC-DC → barre +', s.dcdc);
+  }
+  if (circuits.length) {
+    var iBox = 0, branchMax = 0;
+    circuits.forEach(function (c, i) {
+      iBox += c.I;
+      c.tag = 'F' + (i + 1);
+      c.spec = lineSpec({ id: 'c-' + c.id, label: c.tag + ' · ' + (c.qty > 1 ? nf(c.qty, 1) + ' × ' : '') + (c.name || 'Appareil sans nom'),
+        I: c.I, len: c.len, fz: c.fz, V: vnom, list: BLADE, drop: drop });
+      branchMax = Math.max(branchMax, c.spec.fuse || 0);
+    });
+    add('box', 'Barre + → boîte à fusibles 12 V', iBox, { minFuse: branchMax ? branchMax + 0.01 : 0 });
+  }
+  if (inverter || p230 > 0) {
+    add('inv', 'Barre + → convertisseur 230 V', (inverter || p230 * 1.25) / (invEff * vnom));
+  }
+  add('batt', 'Batterie de service → barre +', iMax, { minFuse: above(['mppt', 'dcdc', 'box', 'inv']) });
+  ['pv', 'mppt', 'alt', 'dcdc', 'batt', 'box'].forEach(function (id) { if (byId[id]) lines.push(byId[id]); });
+  circuits.forEach(function (c) { byId[c.spec.id] = c.spec; lines.push(c.spec); });
+  if (byId.inv) lines.push(byId.inv);
+
+  /* Chute cumulée depuis la batterie de service : la ligne batterie est parcourue par le courant
+     de décharge côté appareils, par le courant de charge côté régulateur et chargeur DC-DC.
+     Le panneau et la batterie moteur sont en amont de leur chargeur : liaison seule. */
+  var upDis = dropPct(byId.batt, iDis), upChg = dropPct(byId.batt, iChg);
+  var upBox = byId.box ? upDis + dropPct(byId.box, iBox) : NaN;
+  var dropMax = drop * 100;
+  lines.forEach(function (l) {
+    var up;
+    if (l.id === 'batt' || l.id === 'pv' || l.id === 'alt') up = 0;
+    else if (l.id === 'mppt' || l.id === 'dcdc') up = upChg;
+    else if (l.id === 'box' || l.id === 'inv') up = upDis;
+    else up = upBox;
+    l.du = dropPct(l, l.I);
+    l.duUp = up;
+    l.duSum = l.du + up;
+    l.over = l.duSum > dropMax + 1e-6;
+    /* plus petite section de cette liaison qui ramène le cumul sous la chute admise */
+    l.secFix = null;
+    var budget = dropMax - up;
+    if (l.over && budget > 0) {
+      var need = 2 * RHO * l.len * l.I / (budget / 100 * l.V);
+      for (var i = 0; i < SECTIONS.length; i++) {
+        if (SECTIONS[i][1] >= l.carry - 1e-9 && SECTIONS[i][0] >= need - 1e-9) { l.secFix = SECTIONS[i][0]; break; }
+      }
+    }
+  });
+
+  return {
+    vnom: vnom, chem: chem, rows: rows,
+    e12: e12, e230: e230, eList: eList, eBatt: eBatt, invLoss: eBatt - eList, ahDay: eBatt / vnom,
+    needUseful: needUseful, needWh: needWh, needAh: needAh, stdAh: stdAh, usableWh: usableWh, autonomy: autonomy,
+    driveWh: driveWh, seasons: seasons, driveNeeded: driveNeeded,
+    p12: p12, p230: p230, iDis: iDis, iChg: iChg, iMax: iMax, inverter: inverter, mppt: mppt,
+    circuits: circuits, acLoads: acLoads, lines: lines, line: byId
+  };
+}
+window.__vanElec = { compute: compute, defaults: defaults, normalize: normalize, exportPayload: exportPayload, parseImport: parseImport, fileName: fileName };
+
+/* ---------- Sauvegarde ---------- */
+var state;
+var localOk = true;
+var touched = false;
+var cloud = null, cloudBusy = false, cloudDirty = false, cloudTimer = null, cloudRetried = false;
+
+function loadLocal() {
+  try {
+    var raw = window.localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { localOk = false; return null; }
+}
+function saveLocal() {
+  try { window.localStorage.setItem(LS_KEY, JSON.stringify(state)); localOk = true; }
+  catch (e) { localOk = false; }
+}
+function showSaveStatus() {
+  var t;
+  if (cloud) t = 'Modifications enregistrées sur le compte Claude et retrouvées sur les autres appareils.';
+  else if (localOk) t = 'Modifications enregistrées dans ce navigateur uniquement.';
+  else t = 'Modifications non enregistrées : ce navigateur bloque le stockage local.';
+  $('#save-status').textContent = t;
+}
+function touch() {
+  touched = true;
+  state.updatedAt = Date.now();
+  saveLocal();
+  queueCloud();
+  showSaveStatus();
+}
+function queueCloud() {
+  if (!cloud) return;
+  cloudDirty = true;
+  clearTimeout(cloudTimer);
+  cloudTimer = setTimeout(flushCloud, 1500);
+}
+function flushCloud() {
+  if (!cloud || cloudBusy || !cloudDirty) return;
+  cloudBusy = true;
+  cloudDirty = false;
+  cloud.ref.set(clone(state)).then(function () {
+    cloudRetried = false;
+  }, function (err) {
+    if (err && err.code === 'unavailable' && !cloudRetried) {
+      cloudRetried = true;
+      cloudDirty = true;
+    } else {
+      cloud = null;
+      showSaveStatus();
+    }
+  }).then(function () {
+    cloudBusy = false;
+    if (cloud && cloudDirty) {
+      clearTimeout(cloudTimer);
+      cloudTimer = setTimeout(flushCloud, 2000 + Math.random() * 2000);
+    }
+  });
+}
+function initCloud() {
+  if (!window.claude || typeof window.claude.use !== 'function') return;
+  Promise.all([window.claude.use('db'), window.claude.use('user')]).then(function (ns) {
+    var db = ns[0], user = ns[1];
+    if (!db || !user) return null;
+    return user.id().then(function (id) {
+      if (!id) return null;
+      var ref = db.doc('data/users/' + id + '/config');
+      return ref.get().then(function (snap) {
+        cloud = { ref: ref };
+        var remote = snap && snap.exists ? snap.data() : null;
+        var remoteAt = remote && typeof remote.updatedAt === 'number' ? remote.updatedAt : 0;
+        if (remote && Array.isArray(remote.rows) && !touched && remoteAt > (state.updatedAt || 0)) {
+          state = normalize(clone(remote));
+          saveLocal();
+          renderAll();
+        } else if ((state.updatedAt || 0) > remoteAt) {
+          queueCloud();
+        }
+        showSaveStatus();
+      });
+    });
+  }).catch(function () { /* la page reste en sauvegarde locale */ });
+}
+
+/* ---------- Rendu du tableau des appareils ---------- */
+var rowsEl = $('#rows');
+var nomenEl = $('#nomen');
+var nomenKey = null;
+var GLYPH = {
+  12: '<svg viewBox="0 0 18 12" aria-hidden="true"><path d="M2 4h14M2 8.5h3M7.5 8.5h3M13 8.5h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  230: '<svg viewBox="0 0 18 12" aria-hidden="true"><path d="M2 6c2.3-5.5 4.7-5.5 7 0s4.7 5.5 7 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
+};
+function el(tag, attrs) {
+  var n = document.createElement(tag);
+  for (var k in attrs || {}) {
+    if (attrs[k] == null) continue;
+    if (k === 'class') n.className = attrs[k];
+    else if (k === 'text') n.textContent = attrs[k];
+    else n.setAttribute(k, attrs[k]);
+  }
+  for (var i = 2; i < arguments.length; i++) n.appendChild(arguments[i]);
+  return n;
+}
+function numInput(id, attrs) {
+  var a = { id: id, class: 'num', type: 'text', inputmode: 'decimal', autocomplete: 'off' };
+  for (var k in attrs) a[k] = attrs[k];
+  return el('input', a);
+}
+function unitField(input, unit) {
+  return el('span', { class: 'unit-field' }, input, el('span', { class: 'unit', text: unit }));
+}
+function autosize(t) {
+  t.style.height = 'auto';
+  t.style.height = (t.scrollHeight + 2) + 'px';
+}
+function buildRow(r) {
+  var qty = numInput('q-' + r.id, { inputmode: 'numeric', 'data-f': 'qty', 'aria-label': 'Nombre' });
+  qty.value = fmtIn(r.qty);
+  var name = el('textarea', { id: 'n-' + r.id, rows: '1', maxlength: '120', 'data-f': 'name', 'aria-label': 'Appareil', placeholder: 'Nom de l’appareil' });
+  name.value = r.name;
+  var w = numInput('w-' + r.id, { 'data-f': 'w', 'aria-label': 'Puissance en watts' });
+  w.value = fmtIn(r.w);
+  var pk = numInput('p-' + r.id, { 'data-f': 'pk', 'aria-label': 'Puissance de pointe en watts, vide si identique à la puissance', placeholder: 'idem' });
+  pk.value = fmtIn(r.pk);
+  var h = numInput('h-' + r.id, { 'data-f': 'h', 'aria-label': 'Heures de marche par jour', title: '24 h/j au maximum' });
+  h.value = fmtIn(r.h);
+  if (r.h > 24) h.setAttribute('aria-invalid', 'true');
+  var u = el('select', { id: 'u-' + r.id, 'data-f': 'u', 'aria-label': 'Tension' },
+    el('option', { value: '12', text: '12 V' }), el('option', { value: '230', text: '230 V' }));
+  u.value = String(r.u);
+  var glyph = el('span', { 'data-o': 'glyph' });
+  glyph.innerHTML = GLYPH[r.u];
+  var del = el('button', { type: 'button', class: 'icon-btn', 'data-act': 'del', 'aria-label': 'Supprimer la ligne', title: 'Supprimer la ligne', text: '×' });
+  return el('tr', { 'data-id': r.id },
+    el('td', { class: 'c-qty', 'data-label': 'Nb' }, qty),
+    el('td', { class: 'c-name', 'data-label': 'Appareil' }, name, el('span', { class: 'print-only', 'data-o': 'pname', text: r.name })),
+    el('td', { class: 'c-w', 'data-label': 'Puissance' }, unitField(w, 'W')),
+    el('td', { class: 'c-pk', 'data-label': 'Pointe' }, unitField(pk, 'W')),
+    el('td', { class: 'c-h', 'data-label': 'Heures/jour' }, unitField(h, 'h/j')),
+    el('td', { class: 'c-total', 'data-label': 'Total' }, el('output', { 'data-o': 'e' })),
+    el('td', { class: 'c-pct', 'data-label': '% d’utilisation' },
+      el('span', { class: 'pct' }, el('output', { 'data-o': 'pct' }), el('span', { class: 'pct-bar' }, el('i', { 'data-o': 'bar' })))),
+    el('td', { class: 'c-u', 'data-label': 'Tension' }, el('span', { class: 'volt' }, u, glyph)),
+    el('td', { class: 'c-del' }, del)
+  );
+}
+function renderRows() {
+  rowsEl.textContent = '';
+  state.rows.forEach(function (r) { rowsEl.appendChild(buildRow(r)); });
+  $$('textarea', rowsEl).forEach(autosize);
+}
+function renderSettings() {
+  $$('[data-s]').forEach(function (inp) {
+    var path = inp.dataset.s.split('.');
+    var v = path.length === 2 ? state.s[path[0]][path[1]] : state.s[path[0]];
+    inp.value = path[0] === 'chem' ? v : fmtIn(v);
+    inp.removeAttribute('aria-invalid');
+  });
+}
+function setPill(node, level, text) {
+  node.className = 'pill pill--' + level;
+  node.textContent = text;
+}
+function setText(id, text) { $('#' + id).textContent = text; }
+
+/* ---------- Nomenclature ---------- */
+function lineCfg(id) {
+  if (id.indexOf('c-') === 0) {
+    var rid = id.slice(2);
+    return state.rows.filter(function (r) { return r.id === rid; })[0] || null;
+  }
+  return state.s.lines[id] || null;
+}
+function buildLineRow(l) {
+  var cfg = lineCfg(l.id) || { len: l.len, fz: null };
+  var len = numInput('ll-' + l.id, { 'data-l': l.id, 'data-lf': 'len', 'aria-label': 'Longueur aller en mètres' });
+  len.value = fmtIn(cfg.len);
+  var fuseCell;
+  if (l.noFuse) {
+    fuseCell = el('td', {}, el('output', { text: 'sans' }));
+  } else {
+    var fz = numInput('lf-' + l.id, { 'data-l': l.id, 'data-lf': 'fz', 'aria-label': 'Calibre du fusible en ampères, vide pour le calcul automatique' });
+    fz.value = fmtIn(cfg.fz);
+    fuseCell = el('td', {}, unitField(fz, 'A'));
+  }
+  return el('tr', { 'data-line': l.id },
+    el('td', {}, el('output', { 'data-o': 'name' }), el('span', { class: 'flag', 'data-o': 'flag' })),
+    el('td', { class: 'r' }, el('output', { 'data-o': 'i' })),
+    el('td', {}, unitField(len, 'm')),
+    fuseCell,
+    el('td', { class: 'r key-cell' }, el('output', { 'data-o': 'sec' })),
+    el('td', { class: 'r' }, el('output', { 'data-o': 'du' })),
+    el('td', { class: 'r' }, el('output', { 'data-o': 'sum' }))
+  );
+}
+function renderNomen(c) {
+  var key = c.lines.map(function (l) { return l.id; }).join('|');
+  if (key !== nomenKey) {
+    nomenKey = key;
+    nomenEl.textContent = '';
+    c.lines.forEach(function (l) { nomenEl.appendChild(buildLineRow(l)); });
+  }
+  c.lines.forEach(function (l) {
+    var tr = nomenEl.querySelector('tr[data-line="' + l.id + '"]');
+    if (!tr) return;
+    $('[data-o=name]', tr).textContent = l.label;
+    $('[data-o=i]', tr).textContent = nf(l.I, 1) + ' A';
+    $('[data-o=sec]', tr).textContent = fmtSec(l.sec);
+    var fz = $('[data-lf=fz]', tr);
+    if (fz) {
+      fz.placeholder = l.auto === null ? '> 500' : fmtIn(l.auto);
+      if (l.weak) fz.setAttribute('aria-invalid', 'true');
+      else if (fz.getAttribute('aria-invalid') === 'true' && !Number.isNaN(parseNum(fz.value || '0'))) fz.removeAttribute('aria-invalid');
+    }
+    $('[data-o=du]', tr).textContent = fmtPct(l.du);
+    var sum = $('[data-o=sum]', tr);
+    sum.textContent = fmtPct(l.duSum);
+    sum.classList.toggle('is-over', !!l.over);
+    var flag = '';
+    if (l.weak) flag = 'Fusible plus faible que l’intensité : il sautera.';
+    else if (l.sec === null) flag = 'Hors gamme : raccourcir la liaison ou doubler les câbles.';
+    else if (l.over) {
+      flag = 'Chute cumulée au-dessus des ' + nf(state.s.drop, 1) + ' % admis : '
+        + (l.secFix !== null ? 'du ' + fmtSec(l.secFix) + ' sur cette liaison la ramène dessous.'
+          : 'grossir d’abord les liaisons en amont.');
+    }
+    $('[data-o=flag]', tr).textContent = flag;
+  });
+}
+
+/* ---------- Schéma de câblage (SVG généré) ---------- */
+function wrapText(text, max, maxLines) {
+  var words = String(text || '').trim().split(/\s+/), lines = [], cur = '';
+  for (var i = 0; i < words.length; i++) {
+    var next = cur ? cur + ' ' + words[i] : words[i];
+    if (next.length <= max || !cur) cur = next;
+    else { lines.push(cur); cur = words[i]; }
+  }
+  if (cur) lines.push(cur);
+  if (lines.length > maxLines) {
+    lines = lines.slice(0, maxLines);
+    var last = lines[maxLines - 1];
+    lines[maxLines - 1] = (last.length > max - 1 ? last.slice(0, max - 1) : last).replace(/[\s,.;:(\/-]+$/, '') + '…';
+  }
+  return lines.map(function (l) { return l.length > max + 1 ? l.slice(0, max) + '…' : l; });
+}
+function renderSchema(c) {
+  var s = state.s;
+  var X = { a0: 16, a1: 206, b0: 280, b1: 450, bus: 520, c0: 628, c1: 788, d0: 868, d1: 1104 };
+  var out = [], wires = [], top = [];
+  function T(cls, x, y, text, anchor) {
+    return '<text class="' + cls + '" x="' + x + '" y="' + y + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' + esc(text) + '</text>';
+  }
+  function box(x0, x1, y, h, lines, cls) {
+    var g = '<rect class="' + (cls || 'sch-box') + '" x="' + x0 + '" y="' + (y - h / 2) + '" width="' + (x1 - x0) + '" height="' + h + '" rx="3"/>';
+    var lh = 15, y0 = y - (lines.length - 1) * lh / 2 + 4;
+    lines.forEach(function (t, i) { g += T(i === 0 ? 'sch-t' : 'sch-s', x0 + 10, y0 + i * lh, t); });
+    return g;
+  }
+  function wire(cls, d) { wires.push('<path class="sch-w ' + cls + '" d="' + d + '"/>'); }
+  function fuse(x, y, cls) {
+    top.push('<rect class="sch-fuse" x="' + (x - 14) + '" y="' + (y - 6) + '" width="28" height="12"/>'
+      + '<path class="sch-w ' + cls + '" d="M' + (x - 14) + ' ' + y + 'H' + (x + 14) + '"/>');
+  }
+  function lab(x, y, text) { top.push(T('sch-l', x, y, text)); }
+  function dot(x, y, cls) { top.push('<circle class="' + (cls || 'sch-dot') + '" cx="' + x + '" cy="' + y + '" r="4.5"/>'); }
+  /* liaison horizontale : fusible et section posés au milieu */
+  function link(x0, x1, y, l, cls) {
+    wire(cls || 'sch-pos', 'M' + x0 + ' ' + y + 'H' + x1);
+    if (!l) return;
+    var xm = Math.round((x0 + x1) / 2);
+    if (l.fuse !== null) { fuse(xm, y, cls || 'sch-pos'); lab(xm, y - 12, fmtA(l.fuse)); lab(xm, y + 21, fmtSec(l.sec)); }
+    else lab(xm, y - 9, fmtSec(l.sec));
+  }
+
+  /* Colonne de gauche : sources puis batterie */
+  var y = 96, busYs = [];
+  if (c.line.pv) {
+    out.push(box(X.a0, X.a1, y, 56, ['Panneau solaire', nf(s.wc) + ' Wc']));
+    link(X.a1, X.b0, y, c.line.pv);
+    out.push(box(X.b0, X.b1, y, 56, ['Régulateur MPPT', c.mppt ? nf(c.mppt) + ' A ou plus' : 'plus de 100 A']));
+    link(X.b1, X.bus, y, c.line.mppt);
+    dot(X.bus, y); busYs.push(y);
+    y += 92;
+  }
+  if (c.line.alt) {
+    out.push(box(X.a0, X.a1, y, 56, ['Batterie moteur', 'alternateur']));
+    link(X.a1, X.b0, y, c.line.alt);
+    out.push(box(X.b0, X.b1, y, 56, ['Chargeur DC-DC', nf(s.dcdc, 1) + ' A']));
+    link(X.b1, X.bus, y, c.line.dcdc);
+    dot(X.bus, y); busYs.push(y);
+    y += 100;
+  }
+  var yBat = y;
+  var battLines = ['Batterie de service', nf(s.cap) + ' Ah ' + c.chem.label];
+  if (s.cap < c.needAh - 0.5) battLines.push('conseillé : ' + nf(c.stdAh) + ' Ah');
+  var hBat = battLines.length > 2 ? 66 : 56;
+  var lb = c.line.batt;
+  out.push(box(X.a0, X.a1, yBat, hBat, battLines));
+  wire('sch-pos', 'M' + X.a1 + ' ' + yBat + 'H' + X.b0);
+  fuse(243, yBat, 'sch-pos'); lab(243, yBat - 12, fmtA(lb.fuse)); lab(243, yBat + 21, 'principal');
+  out.push(box(X.b0, X.b1, yBat, 56, ['Coupe-batterie', fmtA(lb.fuse) + ' ou plus']));
+  wire('sch-pos', 'M' + X.b1 + ' ' + yBat + 'H' + X.bus);
+  lab(485, yBat - 9, fmtSec(lb.sec));
+  dot(X.bus, yBat); busYs.push(yBat);
+  var leftBottom = yBat + hBat / 2;
+
+  /* Colonne de droite : boîte à fusibles puis convertisseur */
+  var yR = 96, rightBottom = 0;
+  var n = c.circuits.length;
+  if (n) {
+    var y0 = yR, yN = yR + (n - 1) * 54;
+    out.push('<rect class="sch-group" x="' + X.c0 + '" y="' + (y0 - 32) + '" width="' + (X.c1 - X.c0) + '" height="' + (yN - y0 + 64) + '" rx="3"/>');
+    top.push(T('sch-cap', X.c0, y0 - 42, 'BOÎTE À FUSIBLES 12 V'));
+    link(X.bus, X.c0, y0, c.line.box);
+    dot(X.bus, y0); busYs.push(y0);
+    if (n > 1) wire('sch-pos', 'M' + (X.c0 + 18) + ' ' + y0 + 'V' + yN);
+    wire('sch-pos', 'M' + X.c0 + ' ' + y0 + 'H' + (X.c0 + 18));
+    c.circuits.forEach(function (ci, i) {
+      var yy = y0 + i * 54, sp = ci.spec;
+      wire('sch-pos', 'M' + (X.c0 + 18) + ' ' + yy + 'H' + X.d0);
+      fuse(724, yy, 'sch-pos');
+      lab(724, yy - 12, ci.tag + ' · ' + fmtA(sp.fuse));
+      lab(828, yy - 9, fmtSec(sp.sec));
+      var nameLines = wrapText((ci.qty > 1 ? nf(ci.qty, 1) + ' × ' : '') + (ci.name || 'Appareil sans nom'), 36, 2);
+      var g = '<rect class="sch-box" x="' + X.d0 + '" y="' + (yy - 21) + '" width="' + (X.d1 - X.d0) + '" height="42" rx="3"/>';
+      nameLines.forEach(function (t, k) { g += T('sch-n', X.d0 + 10, yy + 4 + (k - (nameLines.length - 1) / 2) * 15, t); });
+      out.push(g);
+    });
+    rightBottom = yN + 32;
+    yR = yN + 32 + 64;
+  }
+  if (c.line.inv) {
+    var yI = yR, m = c.acLoads.length, yM = yI + Math.max(0, m - 1) * 54;
+    link(X.bus, X.c0, yI, c.line.inv);
+    dot(X.bus, yI); busYs.push(yI);
+    out.push(box(X.c0, X.c1, yI, 56, ['Convertisseur', c.inverter ? nf(c.inverter) + ' VA' : 'plus de 5 000 VA']));
+    wire('sch-ac', 'M' + X.c1 + ' ' + yI + 'H828' + (m > 1 ? 'V' + yM : ''));
+    lab(828, yI - 12, '230 V');
+    c.acLoads.forEach(function (a, j) {
+      var yy = yI + j * 54;
+      wire('sch-ac', 'M828 ' + yy + 'H' + X.d0);
+      if (m > 1) dot(828, yy, 'sch-dot-ac');
+      var nameLines = wrapText((a.qty > 1 ? nf(a.qty, 1) + ' × ' : '') + (a.name || 'Appareil sans nom'), 36, 2);
+      var g = '<rect class="sch-box" x="' + X.d0 + '" y="' + (yy - 21) + '" width="' + (X.d1 - X.d0) + '" height="42" rx="3"/>';
+      nameLines.forEach(function (t, k) { g += T('sch-n', X.d0 + 10, yy + 4 + (k - (nameLines.length - 1) / 2) * 15, t); });
+      out.push(g);
+    });
+    rightBottom = Math.max(yI + 28, yM + 21);
+  }
+
+  /* Barres */
+  var busTop = Math.min.apply(null, busYs) - 24, busBottom = Math.max.apply(null, busYs) + 24;
+  var rails = '<rect class="sch-rail-pos" x="' + (X.bus - 4) + '" y="' + busTop + '" width="8" height="' + (busBottom - busTop) + '" rx="2"/>';
+  top.push(T('sch-cap', X.bus, busTop - 9, 'BARRE +', 'middle'));
+  var yNeg = Math.max(leftBottom, rightBottom, busBottom) + 58;
+  wire('sch-neg', 'M52 ' + (yBat + hBat / 2) + 'V' + yNeg + 'H' + X.b0);
+  wire('sch-neg', 'M' + X.b1 + ' ' + yNeg + 'H' + X.bus);
+  out.push(box(X.b0, X.b1, yNeg, 46, ['Shunt', 'mesure du courant']));
+  rails += '<rect class="sch-rail-neg" x="' + (X.bus - 4) + '" y="' + (yNeg - 4) + '" width="' + (X.d1 - X.bus + 4) + '" height="8" rx="2"/>';
+  top.push(T('sch-cap', X.d1, yNeg - 12, 'BARRE − · RETOUR DE CHAQUE APPAREIL', 'end'));
+  top.push(T('sch-l', 64, yBat + hBat / 2 + 16, '−'));
+  top.push(T('sch-l', X.a1 + 9, yBat - 8, '+'));
+
+  var H = yNeg + 40;
+  var desc = 'Schéma de câblage : '
+    + (c.line.pv ? 'panneau solaire de ' + nf(s.wc) + ' Wc par un régulateur MPPT, ' : '')
+    + (c.line.alt ? 'alternateur par un chargeur DC-DC de ' + nf(s.dcdc, 1) + ' A, ' : '')
+    + 'batterie de service de ' + nf(s.cap) + ' Ah avec fusible principal de ' + fmtA(lb.fuse) + ', '
+    + (n ? 'boîte à fusibles de ' + n + ' circuit' + (n > 1 ? 's' : '') + ' 12 V' : 'aucun circuit 12 V')
+    + (c.line.inv ? ' et convertisseur 230 V.' : '.');
+  $('#schema').innerHTML = '<svg viewBox="0 0 1120 ' + H + '" role="img" aria-label="' + esc(desc) + '">'
+    + wires.join('') + rails + out.join('') + top.join('') + '</svg>';
+}
+
+/* ---------- Recalcul général ---------- */
+function recalc() {
+  var c = compute(state);
+  var s = state.s;
+
+  c.rows.forEach(function (x) {
+    var tr = rowsEl.querySelector('tr[data-id="' + x.id + '"]');
+    if (!tr) return;
+    $('[data-o=e]', tr).textContent = nf(x.e, 1) + ' Wh/j';
+    $('[data-o=pct]', tr).textContent = nf(x.pct, 1) + ' %';
+    $('[data-o=bar]', tr).style.width = clamp(x.pct, 0, 100) + '%';
+  });
+  setText('t-total', nf(c.eList, 1) + ' Wh/j');
+  setText('t-note', c.invLoss > 0.5
+    ? 'Plus ' + nf(c.invLoss) + ' Wh/j de pertes du convertisseur : ' + nf(c.eBatt) + ' Wh/j prélevés sur la batterie.'
+    : '');
+
+  /* Plaque */
+  setText('eyebrow', 'Bilan de puissance · parc 12 V · ' + c.chem.label);
+  setText('k-conso', nf(c.eBatt));
+  setText('k-conso-sub', nf(c.ahDay, c.ahDay < 10 ? 1 : 0) + ' Ah/j sous ' + nf(c.vnom, 1) + ' V');
+  setText('k-batt', nf(c.stdAh));
+  setText('k-batt-sub', c.chem.label + ', ' + nf(c.needAh) + ' Ah calculés pour ' + nf(s.days, 1) + ' j sans recharge');
+  setText('k-auto', Number.isFinite(c.autonomy) ? (c.autonomy >= 100 ? '> 99' : nf(c.autonomy, 1)) : '—');
+  setText('k-auto-sub', 'avec la batterie de ' + nf(s.cap) + ' Ah installée');
+  var ratio = s.days > 0 ? c.autonomy / s.days : Infinity;
+  var level = ratio >= 1 ? 'ok' : (ratio >= 0.75 ? 'serious' : 'bad');
+  var word = ratio >= 1 ? 'Suffisant' : (ratio >= 0.75 ? 'Juste' : 'Insuffisant');
+  setPill($('#k-auto-pill'), level, word + ' pour ' + nf(s.days, 1) + ' j');
+  var winter = c.seasons[2];
+  setText('k-winter', signed(winter.net));
+  setText('k-winter-sub', nf(winter.charge) + ' Wh/j rechargés pour ' + nf(c.eBatt) + ' consommés');
+
+  /* Batterie */
+  setText('b-need-wh', nf(c.needWh) + ' Wh, dont ' + nf(c.needUseful) + ' utiles');
+  setText('b-need-ah', nf(c.needAh, c.needAh < 10 ? 1 : 0) + ' Ah');
+  setText('b-std', nf(c.stdAh) + ' Ah');
+  setText('b-usable', nf(c.usableWh) + ' Wh, soit ' + fmtDays(c.autonomy));
+  setPill($('#b-pill'), level, word);
+  var meter = $('#b-meter');
+  meter.style.setProperty('--tone', 'var(--' + level + ')');
+  $('i', meter).style.width = clamp(Number.isFinite(ratio) ? ratio * 100 : 100, 0, 100) + '%';
+  meter.setAttribute('aria-label', 'Autonomie de ' + fmtDays(c.autonomy) + ' pour un objectif de ' + nf(s.days, 1) + ' j');
+  setText('b-meter-end', 'objectif ' + nf(s.days, 1) + ' j');
+
+  /* Recharge */
+  var scale = c.eBatt;
+  c.seasons.forEach(function (x) { scale = Math.max(scale, x.charge); });
+  scale = scale > 0 ? scale * 1.04 : 1;
+  c.seasons.forEach(function (x) {
+    var row = $('.season[data-k="' + x.k + '"]');
+    var solar = $('.seg--solar', row), drive = $('.seg--drive', row);
+    solar.style.width = (x.solar / scale * 100) + '%';
+    drive.style.width = (x.drive / scale * 100) + '%';
+    solar.hidden = x.solar <= 0;
+    drive.hidden = x.drive <= 0;
+    solar.classList.toggle('is-end', x.drive <= 0);
+    drive.classList.add('is-end');
+    solar.dataset.tip = 'Solaire, ' + x.label + ' : ' + nf(x.solar) + ' Wh/j';
+    drive.dataset.tip = 'Roulage, ' + x.label + ' : ' + nf(x.drive) + ' Wh/j';
+    solar.setAttribute('aria-label', solar.dataset.tip);
+    drive.setAttribute('aria-label', drive.dataset.tip);
+    $('.ref', row).style.left = (c.eBatt / scale * 100) + '%';
+    $('[data-o=vals]', row).textContent = nf(x.solar) + ' Wh solaire + ' + nf(x.drive) + ' Wh roulage';
+    $('[data-o=net]', row).textContent = signed(x.net) + ' Wh/j';
+    var pill = $('[data-o=auto]', row);
+    if (!Number.isFinite(x.days)) setPill(pill, 'ok', 'Autonome');
+    else setPill(pill, x.days >= s.days ? 'serious' : 'bad', fmtDays(x.days));
+  });
+  var worst = c.seasons.reduce(function (a, b) { return b.net < a.net ? b : a; });
+  var msg;
+  if (c.eBatt <= 0) msg = '';
+  else if (worst.net >= -0.5) msg = 'La recharge couvre la consommation en toute saison.';
+  else {
+    msg = 'En ' + worst.label + ', la recharge couvre ' + nf(worst.cover * 100) + ' % de la consommation. Pour ne plus dépendre de la batterie, il faudrait '
+      + (Number.isFinite(worst.wcNeeded) ? nf(Math.ceil(worst.wcNeeded / 10) * 10) + ' Wc de solaire seul' : 'du soleil')
+      + (Number.isFinite(c.driveNeeded) ? ', ou ' + fmtHM(c.driveNeeded) + ' de roulage par jour seul.' : '.');
+  }
+  setText('c-worst', msg);
+
+  /* Protections */
+  setText('p-230', nf(c.p230) + ' W');
+  setText('p-inv', c.inverter ? nf(c.inverter) + ' VA' : (c.p230 > 0 ? '> 5 000 VA' : '—'));
+  setText('p-inv-note', c.p230 > 0
+    ? 'Marge de 25 % sur la puissance simultanée. Moteurs et compresseurs appellent plusieurs fois leur puissance au démarrage : renseigner leur pointe dans le tableau.'
+    : 'Aucun appareil 230 V dans la liste, donc pas de convertisseur sur le schéma. Un convertisseur consomme aussi à vide : l’ajouter comme une ligne 12 V s’il reste allumé.');
+  setText('p-idis', nf(c.iDis, 1) + ' A');
+  setText('p-ichg', nf(c.iChg, 1) + ' A');
+  setText('p-fuse', fmtA(c.line.batt.fuse));
+
+  renderNomen(c);
+  renderSchema(c);
+}
+function syncProject() {
+  var name = state.name.trim();
+  document.title = (name ? name + ' · ' : '') + 'Dimensionnement électrique du van';
+  setText('print-meta', (name || 'Projet sans nom') + ' · édité le '
+    + new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }));
+}
+function renderAll() {
+  nomenKey = null;
+  $('#proj-name').value = state.name;
+  syncProject();
+  renderRows(); renderSettings(); recalc(); showSaveStatus();
+}
+
+/* ---------- Interactions ---------- */
+function onRowEdit(e) {
+  var t = e.target, f = t.dataset && t.dataset.f;
+  if (!f) return;
+  var tr = t.closest('tr');
+  var r = tr && state.rows.filter(function (x) { return x.id === tr.dataset.id; })[0];
+  if (!r) return;
+  if (f === 'name') {
+    r.name = t.value.replace(/[\r\n]+/g, ' ');
+    $('[data-o=pname]', tr).textContent = r.name;
+    autosize(t);
+  } else if (f === 'u') {
+    r.u = t.value === '230' ? 230 : 12;
+    $('[data-o=glyph]', tr).innerHTML = GLYPH[r.u];
+  } else {
+    var raw = t.value.trim();
+    var n = raw === '' ? 0 : parseNum(raw);
+    if (Number.isNaN(n)) { t.setAttribute('aria-invalid', 'true'); return; }
+    if (f === 'h' && n > 24) t.setAttribute('aria-invalid', 'true'); else t.removeAttribute('aria-invalid');
+    r[f] = (f === 'pk' && n === 0) ? null : n;
+  }
+  touch();
+  recalc();
+}
+rowsEl.addEventListener('input', onRowEdit);
+rowsEl.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && e.target.tagName === 'TEXTAREA') { e.preventDefault(); e.target.blur(); }
+});
+rowsEl.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-act=del]');
+  if (!b) return;
+  var tr = b.closest('tr');
+  var next = tr.nextElementSibling || tr.previousElementSibling;
+  state.rows = state.rows.filter(function (x) { return x.id !== tr.dataset.id; });
+  tr.remove();
+  touch();
+  recalc();
+  var focusTo = next ? $('textarea', next) : $('#add-row');
+  if (focusTo) focusTo.focus();
+});
+function addRow(r) {
+  var row = { id: uid(), qty: r.qty, name: r.name, w: r.w, pk: r.pk || null, h: r.h, u: r.u, len: 4, fz: r.fz || null };
+  state.rows.push(row);
+  var tr = buildRow(row);
+  rowsEl.appendChild(tr);
+  var t = $('textarea', tr);
+  autosize(t);
+  touch();
+  recalc();
+  t.focus();
+  t.setSelectionRange(t.value.length, t.value.length);
+}
+$('#add-row').addEventListener('click', function () { addRow({ qty: 1, name: '', w: 0, h: 1, u: 12 }); });
+
+var presetEl = $('#preset');
+(function buildPresets() {
+  presetEl.appendChild(el('option', { value: '', text: 'Ajouter un appareil type' }));
+  PRESETS.forEach(function (group, gi) {
+    var og = el('optgroup', { label: group[0] });
+    group[1].forEach(function (p, pi) {
+      og.appendChild(el('option', { value: gi + ':' + pi, text: p[0] + ' (' + nf(p[1]) + ' W)' }));
+    });
+    presetEl.appendChild(og);
+  });
+})();
+presetEl.addEventListener('change', function () {
+  if (!presetEl.value) return;
+  var ix = presetEl.value.split(':');
+  var p = PRESETS[+ix[0]][1][+ix[1]];
+  presetEl.value = '';
+  addRow({ qty: 1, name: p[0], w: p[1], h: p[2], pk: p[3], fz: p[4], u: +ix[0] === 1 ? 230 : 12 });
+});
+
+document.addEventListener('input', function (e) {
+  var t = e.target, key = t.dataset && t.dataset.s;
+  if (!key) return;
+  if (key === 'chem') {
+    state.s.chem = CHEM[t.value] ? t.value : 'lfp';
+    state.s.dod = CHEM[state.s.chem].dod;
+    $('#s-dod').value = fmtIn(state.s.dod);
+    $('#s-dod').removeAttribute('aria-invalid');
+  } else {
+    var n = parseNum(t.value);
+    if (Number.isNaN(n)) { t.setAttribute('aria-invalid', 'true'); return; }
+    t.removeAttribute('aria-invalid');
+    var path = key.split('.');
+    if (path.length === 2) state.s[path[0]][path[1]] = n; else state.s[path[0]] = n;
+  }
+  touch();
+  recalc();
+});
+nomenEl.addEventListener('input', function (e) {
+  var t = e.target, id = t.dataset && t.dataset.l;
+  if (!id) return;
+  var cfg = lineCfg(id);
+  if (!cfg) return;
+  var raw = t.value.trim();
+  if (t.dataset.lf === 'fz') {
+    var f = raw === '' ? 0 : parseNum(raw);
+    if (Number.isNaN(f)) { t.setAttribute('aria-invalid', 'true'); return; }
+    t.removeAttribute('aria-invalid');
+    cfg.fz = f > 0 ? f : null;
+  } else {
+    var n = parseNum(raw);
+    if (Number.isNaN(n) || n <= 0) { t.setAttribute('aria-invalid', 'true'); return; }
+    t.removeAttribute('aria-invalid');
+    cfg.len = n;
+  }
+  touch();
+  recalc();
+});
+
+/* Copie du tableau, collable dans un tableur */
+function tableText() {
+  var c = compute(state);
+  var lines = [['Nb', 'Appareil', 'Puissance (W)', 'Pointe (W)', 'Heures/jour', 'Total (Wh/j)', '% d\'utilisation', 'Tension'].join('\t')];
+  state.rows.forEach(function (r, i) {
+    lines.push([fmtIn(r.qty), r.name.replace(/\t/g, ' '), fmtIn(r.w), fmtIn(r.pk), fmtIn(r.h),
+      fmtIn(Math.round(c.rows[i].e * 10) / 10), fmtIn(Math.round(c.rows[i].pct * 100) / 100) + ' %', r.u + ' V'].join('\t'));
+  });
+  lines.push(['', 'Consommation journalière', '', '', '', fmtIn(Math.round(c.eList * 10) / 10), '', ''].join('\t'));
+  return lines.join('\n');
+}
+$('#copy').addEventListener('click', function () {
+  var btn = this, text = tableText();
+  function fallback() {
+    $('#copy-fallback').hidden = false;
+    var ta = $('#copy-text');
+    ta.value = text;
+    ta.focus();
+    ta.select();
+  }
+  try {
+    navigator.clipboard.writeText(text).then(function () {
+      $('#copy-fallback').hidden = true;
+      btn.textContent = 'Tableau copié';
+      setTimeout(function () { btn.textContent = 'Copier le tableau'; }, 2000);
+    }, fallback);
+  } catch (err) { fallback(); }
+});
+
+/* Remise à zéro en deux temps */
+function toggleReset(open) {
+  $('#reset').hidden = open;
+  $('#reset-confirm').hidden = !open;
+}
+$('#reset').addEventListener('click', function () { toggleReset(true); $('#reset-no').focus(); });
+$('#reset-no').addEventListener('click', function () { toggleReset(false); $('#reset').focus(); });
+$('#reset-yes').addEventListener('click', function () {
+  state = defaults();
+  toggleReset(false);
+  renderAll();
+  touch();
+  $('#reset').focus();
+});
+
+/* Projet : nom, export JSON, import JSON, impression */
+var ioEl = $('#io-status');
+function ioStatus(text, action) {
+  ioEl.textContent = text;
+  if (action) {
+    var b = el('button', { type: 'button', class: 'btn btn--quiet', text: action.label });
+    b.addEventListener('click', action.fn);
+    ioEl.appendChild(b);
+  }
+  ioEl.hidden = !text;
+}
+$('#proj-name').addEventListener('input', function () {
+  state.name = this.value.replace(/[\r\n\t]+/g, ' ').slice(0, 80);
+  syncProject();
+  touch();
+});
+$('#export').addEventListener('click', function () {
+  var text = JSON.stringify(exportPayload(state), null, 2);
+  var name = fileName(state);
+  try {
+    var url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    var a = el('a', { href: url, download: name });
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    $('#export-fallback').hidden = true;
+    ioStatus('Projet exporté dans ' + name + '.');
+  } catch (err) {
+    ioStatus('');
+    $('#export-fallback').hidden = false;
+    var ta = $('#export-text');
+    ta.value = text;
+    ta.focus();
+    ta.select();
+  }
+});
+function applyImport(text) {
+  var res = parseImport(text);
+  if (res.error) { ioStatus('Import impossible : ' + res.error); return; }
+  var before = clone(state);
+  state = res.state;
+  toggleReset(false);
+  renderAll();
+  touch();
+  var n = state.rows.length;
+  ioStatus('Projet ' + (state.name.trim() ? '« ' + state.name.trim() + ' » ' : '') + 'importé : '
+    + n + ' appareil' + (n > 1 ? 's' : '') + '. Il remplace le projet précédent.', {
+    label: 'Annuler l’import',
+    fn: function () {
+      state = normalize(before);
+      renderAll();
+      touch();
+      ioStatus('Import annulé, projet précédent rétabli.');
+      $('#import').focus();
+    }
+  });
+}
+var fileEl = $('#import-file');
+$('#import').addEventListener('click', function () { fileEl.value = ''; fileEl.click(); });
+fileEl.addEventListener('change', function () {
+  var f = fileEl.files && fileEl.files[0];
+  if (!f) return;
+  if (f.size > 1e6) { ioStatus('Import impossible : fichier trop volumineux pour être un projet.'); return; }
+  var rd = new FileReader();
+  rd.onload = function () { applyImport(String(rd.result)); };
+  rd.onerror = function () { ioStatus('Import impossible : le navigateur n’a pas pu lire le fichier.'); };
+  rd.readAsText(f);
+});
+/* Un fichier .json déposé n'importe où sur la page s'importe aussi */
+document.addEventListener('dragover', function (e) {
+  if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') !== -1) e.preventDefault();
+});
+document.addEventListener('drop', function (e) {
+  var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  e.preventDefault();
+  if (f.size > 1e6) { ioStatus('Import impossible : fichier trop volumineux pour être un projet.'); return; }
+  var rd = new FileReader();
+  rd.onload = function () { applyImport(String(rd.result)); };
+  rd.readAsText(f);
+});
+$('#print').addEventListener('click', function () { syncProject(); window.print(); });
+window.addEventListener('beforeprint', syncProject);
+
+/* Infobulle des barres */
+var tip = $('#tip');
+function showTip(e) {
+  var seg = e.target.closest && e.target.closest('.seg');
+  if (!seg || !seg.dataset.tip) return;
+  var r = seg.getBoundingClientRect();
+  tip.textContent = seg.dataset.tip;
+  tip.hidden = false;
+  tip.style.left = (r.left + r.width / 2 + window.scrollX) + 'px';
+  tip.style.top = (r.top + window.scrollY - 8) + 'px';
+}
+function hideTip() { tip.hidden = true; }
+var seasonsEl = $('#seasons');
+seasonsEl.addEventListener('mouseover', showTip);
+seasonsEl.addEventListener('focusin', showTip);
+seasonsEl.addEventListener('mouseout', hideTip);
+seasonsEl.addEventListener('focusout', hideTip);
+
+window.addEventListener('resize', function () { $$('textarea', rowsEl).forEach(autosize); });
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(function () { $$('textarea', rowsEl).forEach(autosize); });
+}
+
+/* ---------- Démarrage ---------- */
+function start(snapshot) {
+  var fromHot = snapshot && Array.isArray(snapshot.rows) ? snapshot : null;
+  state = normalize(fromHot || loadLocal());
+  renderAll();
+  initCloud();
+}
+var hot = window.claude && window.claude.hot;
+try { if (hot && typeof hot.snapshot === 'function') hot.snapshot(function () { return clone(state); }); } catch (e) { /* hors visionneuse */ }
+if (hot && typeof hot.ready === 'function') hot.ready(start);
+else start((hot && hot.data) || {});
+})();
+</script>
+</body>
+</html>
