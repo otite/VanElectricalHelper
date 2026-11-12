@@ -277,7 +277,6 @@ th.r, td.r { text-align: right; }
 .nomen .w-i { width: 120px; } .nomen .w-len { width: 132px; } .nomen .w-fz { width: 132px; } .nomen .w-sec { width: 110px; }
 .nomen .w-du { width: 84px; } .nomen .w-sum { width: 128px; }
 .nomen .key-cell { font-weight: 600; }
-.nomen .is-over { color: var(--bad); font-weight: 600; }
 .nomen .flag { display: block; font-size: 12.5px; color: var(--muted); }
 
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
@@ -876,7 +875,7 @@ th.r, td.r { text-align: right; }
 
       <h3>Nomenclature des liaisons</h3>
       <div class="field field--narrow">
-        <label for="s-drop">Chute de tension admise</label>
+        <label for="s-drop">Chute admise depuis la batterie</label>
         <span class="unit-field"><input id="s-drop" class="num" type="text" inputmode="decimal" data-s="drop" autocomplete="off"><span class="unit">%</span></span>
       </div>
       <div class="table-wrap">
@@ -908,7 +907,7 @@ th.r, td.r { text-align: right; }
       <li>Capacité de batterie = consommation × jours d'autonomie ÷ décharge utilisable.</li>
       <li>Production solaire = puissance crête × heures d'ensoleillement équivalent × rendement. Recharge en roulant = courant du chargeur × tension × heures de roulage.</li>
       <li>Fusible = calibre normalisé au-dessus de 125 % de l'intensité. Longueur = aller simple, le retour est compté dans la formule. Section = 2 × ρ × longueur × intensité ÷ chute de tension, avec ρ = 0,0225 Ω·mm²/m pour le cuivre en service, puis contrôle de l'intensité admissible face au fusible. Le chargeur DC-DC est compté 20 % plus gourmand à l'entrée qu'à la sortie, le panneau à 18 V.</li>
-      <li>La chute admise dimensionne chaque liaison séparément. La chute cumulée additionne les liaisons traversées depuis la batterie de service ; elle est signalée quand elle dépasse la chute admise, sans modifier la section calculée.</li>
+      <li>La chute admise s'entend de la batterie de service jusqu'au bout de chaque liaison. La ligne batterie en prend au plus un quart en décharge et la moitié en charge ; avec la ligne de la boîte à fusibles, le tronc commun reste sous la moitié. Circuits, convertisseur, régulateur et chargeur DC-DC sont dimensionnés sur ce qui reste. Panneau et batterie moteur : chute admise entière sur leur seule liaison.</li>
       <li>Valeurs indicatives : la notice de chaque appareil et la fiche du câble font foi.</li>
     </ul>
     <p id="save-status" role="status"></p>
@@ -1112,7 +1111,8 @@ function lineSpec(o) {
   }
   var fuse = o.noFuse ? null : (o.fz || auto);
   var carry = o.noFuse ? o.I * 1.25 : fuse;
-  var sDrop = 2 * RHO * o.len * o.I / (o.drop * o.V);
+  /* o.drop : part de chute de tension accordée à cette liaison ; o.sNeed : section minimale déjà calculée */
+  var sDrop = o.sNeed !== undefined ? o.sNeed : 2 * RHO * o.len * o.I / (o.drop * o.V);
   var sec = null;
   if (carry !== null) {
     for (var i = 0; i < SECTIONS.length; i++) {
@@ -1122,7 +1122,7 @@ function lineSpec(o) {
   return {
     id: o.id, label: o.label, I: o.I, len: o.len, noFuse: !!o.noFuse,
     fuse: fuse, auto: auto, sec: sec, tooBig: carry === null || sec === null,
-    weak: !!(o.fz && o.fz < o.I), V: o.V, carry: carry
+    weak: !!(o.fz && o.fz < o.I), V: o.V
   };
 }
 /* Chute de tension réelle d'une liaison, en % de sa tension, pour un courant donné */
@@ -1184,51 +1184,73 @@ function compute(st) {
   var inverter = p230 > 0 ? nextStd(INVERTERS, p230 * 1.25) : 0;
   var mppt = s.wc > 0 ? nextStd(MPPT, s.wc / vnom) : 0;
 
-  /* Liaisons du schéma */
-  var L = s.lines, byId = {}, lines = [];
-  function add(id, label, I, extra) {
+  /* Liaisons du schéma.
+     La chute admise s'entend de la batterie de service jusqu'au bout de chaque liaison. La ligne
+     batterie est parcourue par le courant de décharge côté appareils et par le courant de charge
+     côté régulateur et chargeur DC-DC : elle prend au plus un quart de la chute admise en décharge
+     et la moitié en charge. Avec la ligne de la boîte à fusibles, le tronc commun reste sous la
+     moitié. Chaque liaison terminale est dimensionnée sur ce qui reste. Le panneau et la batterie
+     moteur sont en amont de leur chargeur : chute admise entière sur leur seule liaison. */
+  var L = s.lines, byId = {}, lines = [], make = {};
+  function spec(id, label, I, extra) {
     var o = { id: id, label: label, I: I, len: L[id].len, fz: L[id].fz, V: vnom, list: FUSES, drop: drop };
     for (var k in extra || {}) o[k] = extra[k];
-    byId[id] = lineSpec(o);
+    return lineSpec(o);
+  }
+  function circuitSpec(c, share) {
+    return lineSpec({ id: 'c-' + c.id, label: c.tag + ' · ' + (c.qty > 1 ? nf(c.qty, 1) + ' × ' : '') + (c.name || 'Appareil sans nom'),
+      I: c.I, len: c.len, fz: c.fz, V: vnom, list: BLADE, drop: share });
   }
   function above(ids) {
     var m = 0;
     ids.forEach(function (id) { if (byId[id] && byId[id].fuse) m = Math.max(m, byId[id].fuse); });
     return m ? m + 0.01 : 0;
   }
+  /* part restante, en fraction ; une liaison amont hors gamme compte pour son plafond */
+  function rest(total, used, cap) { return (total - (Number.isFinite(used) ? used : cap)) / 100; }
+  var dropMax = drop * 100, iBox = 0, branchMax = 0;
   if (s.wc > 0) {
-    add('pv', 'Panneau solaire → régulateur MPPT', s.wc / 18, { V: 18, noFuse: true, fz: null });
-    add('mppt', 'Régulateur MPPT → barre +', s.wc / vnom);
+    byId.pv = spec('pv', 'Panneau solaire → régulateur MPPT', s.wc / 18, { V: 18, noFuse: true, fz: null });
+    make.mppt = function (share) { return spec('mppt', 'Régulateur MPPT → barre +', s.wc / vnom, { drop: share }); };
   }
   if (s.dcdc > 0) {
-    add('alt', 'Batterie moteur → chargeur DC-DC', s.dcdc * 1.2);
-    add('dcdc', 'Chargeur DC-DC → barre +', s.dcdc);
+    byId.alt = spec('alt', 'Batterie moteur → chargeur DC-DC', s.dcdc * 1.2);
+    make.dcdc = function (share) { return spec('dcdc', 'Chargeur DC-DC → barre +', s.dcdc, { drop: share }); };
   }
   if (circuits.length) {
-    var iBox = 0, branchMax = 0;
     circuits.forEach(function (c, i) {
       iBox += c.I;
       c.tag = 'F' + (i + 1);
-      c.spec = lineSpec({ id: 'c-' + c.id, label: c.tag + ' · ' + (c.qty > 1 ? nf(c.qty, 1) + ' × ' : '') + (c.name || 'Appareil sans nom'),
-        I: c.I, len: c.len, fz: c.fz, V: vnom, list: BLADE, drop: drop });
+      c.spec = circuitSpec(c, drop);
       branchMax = Math.max(branchMax, c.spec.fuse || 0);
     });
-    add('box', 'Barre + → boîte à fusibles 12 V', iBox, { minFuse: branchMax ? branchMax + 0.01 : 0 });
+    make.box = function (share) { return spec('box', 'Barre + → boîte à fusibles 12 V', iBox, { minFuse: branchMax ? branchMax + 0.01 : 0, drop: share }); };
   }
   if (inverter || p230 > 0) {
-    add('inv', 'Barre + → convertisseur 230 V', (inverter || p230 * 1.25) / (invEff * vnom));
+    make.inv = function (share) { return spec('inv', 'Barre + → convertisseur 230 V', (inverter || p230 * 1.25) / (invEff * vnom), { drop: share }); };
   }
-  add('batt', 'Batterie de service → barre +', iMax, { minFuse: above(['mppt', 'dcdc', 'box', 'inv']) });
+  /* 1er passage : les calibres des fusibles, qui ne dépendent pas des sections */
+  Object.keys(make).forEach(function (id) { byId[id] = make[id](drop); });
+  var kBatt = 2 * RHO * L.batt.len / vnom;
+  byId.batt = spec('batt', 'Batterie de service → barre +', iMax, {
+    minFuse: above(['mppt', 'dcdc', 'box', 'inv']),
+    sNeed: Math.max(kBatt * iDis / (drop / 4), kBatt * iChg / (drop / 2))
+  });
+  /* 2e passage : les sections, sur la part de chute que l'amont laisse */
+  var upDis = dropPct(byId.batt, iDis), upChg = dropPct(byId.batt, iChg), upBox = NaN;
+  if (make.mppt) byId.mppt = make.mppt(rest(dropMax, upChg, dropMax / 2));
+  if (make.dcdc) byId.dcdc = make.dcdc(rest(dropMax, upChg, dropMax / 2));
+  if (make.inv) byId.inv = make.inv(rest(dropMax, upDis, dropMax / 4));
+  if (make.box) {
+    byId.box = make.box(rest(dropMax / 2, upDis, dropMax / 4));
+    upBox = upDis + dropPct(byId.box, iBox);
+    circuits.forEach(function (c) { c.spec = circuitSpec(c, rest(dropMax, upBox, dropMax / 2)); });
+  }
   ['pv', 'mppt', 'alt', 'dcdc', 'batt', 'box'].forEach(function (id) { if (byId[id]) lines.push(byId[id]); });
   circuits.forEach(function (c) { byId[c.spec.id] = c.spec; lines.push(c.spec); });
   if (byId.inv) lines.push(byId.inv);
 
-  /* Chute cumulée depuis la batterie de service : la ligne batterie est parcourue par le courant
-     de décharge côté appareils, par le courant de charge côté régulateur et chargeur DC-DC.
-     Le panneau et la batterie moteur sont en amont de leur chargeur : liaison seule. */
-  var upDis = dropPct(byId.batt, iDis), upChg = dropPct(byId.batt, iChg);
-  var upBox = byId.box ? upDis + dropPct(byId.box, iBox) : NaN;
-  var dropMax = drop * 100;
+  /* Chute réelle de chaque liaison, seule puis cumulée depuis la batterie de service */
   lines.forEach(function (l) {
     var up;
     if (l.id === 'batt' || l.id === 'pv' || l.id === 'alt') up = 0;
@@ -1236,18 +1258,7 @@ function compute(st) {
     else if (l.id === 'box' || l.id === 'inv') up = upDis;
     else up = upBox;
     l.du = dropPct(l, l.I);
-    l.duUp = up;
     l.duSum = l.du + up;
-    l.over = l.duSum > dropMax + 1e-6;
-    /* plus petite section de cette liaison qui ramène le cumul sous la chute admise */
-    l.secFix = null;
-    var budget = dropMax - up;
-    if (l.over && budget > 0) {
-      var need = 2 * RHO * l.len * l.I / (budget / 100 * l.V);
-      for (var i = 0; i < SECTIONS.length; i++) {
-        if (SECTIONS[i][1] >= l.carry - 1e-9 && SECTIONS[i][0] >= need - 1e-9) { l.secFix = SECTIONS[i][0]; break; }
-      }
-    }
   });
 
   return {
@@ -1475,18 +1486,10 @@ function renderNomen(c) {
       else if (fz.getAttribute('aria-invalid') === 'true' && !Number.isNaN(parseNum(fz.value || '0'))) fz.removeAttribute('aria-invalid');
     }
     $('[data-o=du]', tr).textContent = fmtPct(l.du);
-    var sum = $('[data-o=sum]', tr);
-    sum.textContent = fmtPct(l.duSum);
-    sum.classList.toggle('is-over', !!l.over);
-    var flag = '';
-    if (l.weak) flag = 'Fusible plus faible que l’intensité : il sautera.';
-    else if (l.sec === null) flag = 'Hors gamme : raccourcir la liaison ou doubler les câbles.';
-    else if (l.over) {
-      flag = 'Chute cumulée au-dessus des ' + nf(state.s.drop, 1) + ' % admis : '
-        + (l.secFix !== null ? 'du ' + fmtSec(l.secFix) + ' sur cette liaison la ramène dessous.'
-          : 'grossir d’abord les liaisons en amont.');
-    }
-    $('[data-o=flag]', tr).textContent = flag;
+    $('[data-o=sum]', tr).textContent = fmtPct(l.duSum);
+    $('[data-o=flag]', tr).textContent = l.weak
+      ? 'Fusible plus faible que l’intensité : il sautera.'
+      : (l.sec === null ? 'Hors gamme : raccourcir la liaison ou doubler les câbles.' : '');
   });
 }
 
