@@ -1,3 +1,4 @@
 # État local des outils
-.impeccable/
+.impeccable/*
+!.impeccable/config.json
 .qodo/

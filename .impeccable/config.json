@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "numbered-section-labels",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-11-12T12:56:06.074Z",
+        "reason": "agent: incumbent design — block numbers 01-06 follow the calculation order (CSS plan comment and lede)"
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-11-12T12:56:21.717Z",
+        "reason": "agent: code review — 7 small data bars animate once per edit; scaleX would distort rounded ends and adjacent segments; cost not measured"
+      }
+    ]
+  }
+}

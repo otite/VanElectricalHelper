@@ -23,9 +23,11 @@
   --ok: #0CA30C;
   --serious: #D9662F;
   --bad: #D03B3B;
-  --solar: #EDA100;
+  --solar: #B07400;
   --drive: #2A78D6;
   --pos: #C8321E;
+  /* --line sépare, --edge délimite un contrôle : 3:1 au moins sur le champ, le bloc et le fond */
+  --edge: #747E83;
   --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
   --font-body: "Barlow", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-tech: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -39,6 +41,7 @@
     --ink: #E8EBE9;
     --muted: #9BA5A9;
     --line: #363D41;
+    --edge: #778186;
     --ok: #0CA30C;
     --serious: #EC835A;
     --bad: #E66767;
@@ -55,6 +58,7 @@
   --ink: #E8EBE9;
   --muted: #9BA5A9;
   --line: #363D41;
+  --edge: #778186;
   --ok: #0CA30C;
   --serious: #EC835A;
   --bad: #E66767;
@@ -80,10 +84,13 @@ body {
   flex-direction: column;
   gap: 24px;
 }
+main { min-width: 0; display: flex; flex-direction: column; gap: 24px; }
 .sr {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
+::selection { background: var(--plate); color: var(--plate-ink); }
+.table-wrap, .schema-scroll { scrollbar-width: thin; scrollbar-color: var(--edge) transparent; }
 [hidden] { display: none !important; }
 
 /* En-tête */
@@ -180,13 +187,14 @@ input[type="text"], select, textarea {
   font: 500 15.5px/1.3 var(--font-body);
   color: var(--ink);
   background: var(--field);
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge);
   border-radius: 3px;
   padding: 8px 10px;
+  caret-color: var(--ink);
 }
 textarea { display: block; resize: none; overflow: hidden; min-height: 38px; }
 input.num { text-align: right; font-variant-numeric: tabular-nums; }
-input::placeholder, textarea::placeholder { color: var(--muted); opacity: .8; }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 select {
   appearance: none;
   -webkit-appearance: none;
@@ -197,25 +205,30 @@ select {
   background-size: 10px 6px;
   cursor: pointer;
 }
-input[type="text"]:hover, select:hover, textarea:hover { border-color: var(--muted); }
+input[type="text"]:hover, select:hover, textarea:hover { border-color: var(--ink); }
 [aria-invalid="true"] { border-color: var(--bad) !important; box-shadow: inset 0 0 0 1px var(--bad); }
+/* Message d'erreur sous le champ : carré plein + texte, jamais la couleur seule */
+.err { grid-column: 1 / -1; display: block; font: 600 12.5px/1.3 var(--font-body); color: var(--ink); }
+.err::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 5px; background: var(--bad); }
 :focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 1px;
   box-shadow: 0 0 0 5px var(--plate);
 }
-.unit-field { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.unit-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 6px; min-width: 0; }
 .unit { flex: none; min-width: 2.2em; font: 500 12.5px/1 var(--font-tech); color: var(--muted); white-space: nowrap; }
 
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px 16px; }
 .field { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .field--narrow { max-width: 220px; }
 .field label, .label {
-  font: 600 12.5px/1.2 var(--font-display);
+  font: 600 12.5px/1.3 var(--font-display);
   letter-spacing: .09em;
   text-transform: uppercase;
   color: var(--muted);
 }
+/* Consigne rédigée : une phrase se lit en bas de casse */
+.label.label--prose { font: 500 14px/1.4 var(--font-body); letter-spacing: 0; text-transform: none; color: var(--ink); }
 .hint { margin: 0; font-size: 13.5px; line-height: 1.4; color: var(--muted); max-width: 78ch; }
 
 /* Tableaux */
@@ -258,7 +271,7 @@ th.r, td.r { text-align: right; }
   border-radius: 3px;
   cursor: pointer;
 }
-.icon-btn:hover { color: var(--bad); border-color: var(--line); background: var(--field); }
+.icon-btn:hover { color: var(--ink); border-color: var(--edge); background: var(--field); }
 .loads tfoot td { padding: 16px 8px 0; }
 .foot-label {
   text-align: right;
@@ -279,6 +292,18 @@ th.r, td.r { text-align: right; }
 .nomen .key-cell { font-weight: 600; }
 .nomen .flag { display: block; font-size: 12.5px; color: var(--muted); }
 
+/* Liste de matériel */
+table.shop { min-width: 760px; }
+.shop .w-item { width: 25%; } .shop .w-spec { width: 38%; }
+.shop tbody td { vertical-align: top; font-size: 15.5px; line-height: 1.35; }
+.shop .c-chk { display: none; }
+.shop .c-chk + th, .shop .c-chk + td { padding-left: 0; }
+.shop .grp th { padding: 20px 0 7px; border-bottom: 1px solid var(--ink); color: var(--ink); font-size: 14px; }
+.shop .grp:first-child th { padding-top: 6px; }
+.shop .flag { margin-top: 3px; line-height: 1.35; }
+.shop-pick { display: block; }
+.shop-pick + .shop-pick { margin-top: 3px; }
+
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .toolbar .spacer { flex: 1 1 0; }
 .btn {
@@ -293,7 +318,7 @@ th.r, td.r { text-align: right; }
   cursor: pointer;
 }
 .btn:hover { background: var(--plate); color: var(--plate-ink); border-color: var(--plate-ink); }
-.btn--quiet { color: var(--ink); background: transparent; border-color: var(--line); }
+.btn--quiet { color: var(--ink); background: transparent; border-color: var(--edge); }
 .btn--quiet:hover { background: var(--field); color: var(--ink); border-color: var(--ink); }
 .toolbar select {
   width: 250px;
@@ -460,14 +485,32 @@ th.r, td.r { text-align: right; }
     padding: 14px 0;
     border-bottom: 1px solid var(--line);
   }
-  .loads tbody td { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 0; border: 0; text-align: left; }
-  .loads tbody td::before {
+  .loads tbody td, .nomen tbody td { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 0; border: 0; text-align: left; }
+  .loads tbody td::before, .nomen tbody td::before {
     content: attr(data-label);
-    font: 600 11.5px/1.2 var(--font-display);
+    font: 600 12px/1.2 var(--font-display);
     letter-spacing: .09em;
     text-transform: uppercase;
     color: var(--muted);
   }
+  /* Nomenclature et liste de matériel : une fiche par ligne, plus de défilement de côté */
+  table.nomen { display: block; min-width: 0; }
+  .nomen thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .nomen tbody { display: block; border-top: 2px solid var(--ink); }
+  .nomen tbody tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .nomen td.c-link { grid-column: 1 / -1; }
+  .nomen td.c-link::before, .shop td.key-cell::before { content: none; }
+  .nomen td.c-i { order: 1; } .nomen td.c-du { order: 2; } .nomen td.c-sum { order: 3; }
+  .shop tbody { border-top: 0; }
+  .shop tbody tr { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .shop tbody tr.grp { display: block; padding: 0; border: 0; }
+  .shop .grp th { display: block; }
   .c-name { grid-column: 1 / 4; grid-row: 1; }
   .c-del { grid-column: 4; grid-row: 1; align-items: flex-end; justify-content: flex-end; }
   .loads tbody td.c-del::before { content: none; }
@@ -492,7 +535,7 @@ th.r, td.r { text-align: right; }
   .season-net, .season-auto { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
   .season-net::before, .season-auto::before {
     content: attr(data-label);
-    font: 600 11.5px/1.2 var(--font-display);
+    font: 600 12px/1.2 var(--font-display);
     letter-spacing: .09em;
     text-transform: uppercase;
     color: var(--muted);
@@ -513,6 +556,12 @@ th.r, td.r { text-align: right; }
   .c-total { grid-column: 2; grid-row: 4; }
   .c-pct { grid-column: 1 / -1; grid-row: 5; }
 }
+/* Au doigt : cibles de 44 px, et 16 px dans les champs pour éviter le zoom automatique d'iOS */
+@media screen and (pointer: coarse) {
+  input[type="text"], select, textarea, .toolbar select { min-height: 44px; font-size: 16px; }
+  .btn { min-height: 44px; }
+  .icon-btn { width: 44px; height: 44px; }
+}
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
@@ -528,10 +577,11 @@ th.r, td.r { text-align: right; }
     --ink: #171C1E;
     --muted: #4A5357;
     --line: #B4BBB7;
+    --edge: #747E83;
     --ok: #0CA30C;
     --serious: #D9662F;
     --bad: #D03B3B;
-    --solar: #EDA100;
+    --solar: #B07400;
     --drive: #2A78D6;
     --pos: #C8321E;
     color-scheme: light;
@@ -541,8 +591,9 @@ th.r, td.r { text-align: right; }
   * { transition: none !important; }
   body { font-size: 12.5px; line-height: 1.4; }
   /* Blocs en flux normal : les conteneurs flex et grid se coupent mal entre deux pages */
-  .page { display: block; max-width: none; padding: 0; }
-  .page > * + * { margin-top: 14px; }
+  .page, main { display: block; max-width: none; padding: 0; }
+  .page > * + *, main > * + * { margin-top: 14px; }
+  .err { display: none; }
   .no-print, .toolbar, #copy-fallback, .tip, #save-status, .lede, .c-del, .loads th.w-del, .c-name textarea,
   .block--schema .block-head p { display: none !important; }
   .print-only { display: block; }
@@ -571,8 +622,8 @@ th.r, td.r { text-align: right; }
   input::placeholder { color: var(--ink); opacity: 1; }
   [aria-invalid="true"] { box-shadow: none; text-decoration: underline wavy var(--bad); }
   .fields { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 14px; }
-  .field .unit-field { justify-content: flex-start; }
-  .field input.num { flex: 0 1 auto; width: auto; max-width: 8ch; text-align: left; field-sizing: content; }
+  .field .unit-field { grid-template-columns: auto auto; justify-content: start; }
+  .field input.num { width: auto; max-width: 8ch; text-align: left; field-sizing: content; }
   .field label, .label, .loads th, .nomen th, .season-head, .legend--text { font-size: 12px; }
 
   table.loads, table.nomen { min-width: 0; }
@@ -600,6 +651,12 @@ th.r, td.r { text-align: right; }
   .block-head, h2, h3, .legend, .field--narrow { break-after: avoid; }
   .block { -webkit-box-decoration-break: clone; box-decoration-break: clone; }
   .block--schema { break-before: page; margin-top: 0; }
+  .hint { break-before: avoid; }
+  .shop tbody td { font-size: 12.5px; }
+  .shop .grp th { padding-top: 12px; font-size: 12px; }
+  .shop .c-chk { display: table-cell; width: 24px; }
+  .shop .c-chk + th, .shop .c-chk + td { padding-left: 8px; }
+  .shop td.c-chk::before { content: ""; display: block; width: 11px; height: 11px; margin-top: 2px; border: 1.5px solid var(--ink); }
   thead { display: table-header-group; }
   .notes { break-inside: avoid; gap: 6px; }
   .notes ul { display: block; max-width: none; columns: 2; column-gap: 32px; }
@@ -613,7 +670,7 @@ th.r, td.r { text-align: right; }
   <header class="masthead">
     <p class="eyebrow" id="eyebrow">Bilan de puissance · parc 12 V · LiFePO4</p>
     <h1>Dimensionnement électrique du van</h1>
-    <p class="lede">La liste des appareils donne la consommation. Le reste en découle : capacité de batterie, recharge selon la saison, convertisseur, fusibles, sections de câble et schéma de câblage.</p>
+    <p class="lede">La liste des appareils donne la consommation. Le reste en découle : capacité de batterie, recharge selon la saison, convertisseur, fusibles, sections de câble, schéma de câblage et liste du matériel à acheter.</p>
     <p class="print-only print-meta" id="print-meta"></p>
     <div class="project no-print">
       <div class="field">
@@ -627,31 +684,34 @@ th.r, td.r { text-align: right; }
     </div>
     <div class="confirm no-print" id="io-status" role="status" hidden></div>
     <div id="export-fallback" class="no-print" hidden>
-      <label class="label" for="export-text">Téléchargement bloqué par le navigateur. Copier ce texte dans un fichier .json :</label>
+      <label class="label label--prose" for="export-text">Téléchargement bloqué par le navigateur. Copier ce texte dans un fichier .json :</label>
       <textarea id="export-text" readonly></textarea>
     </div>
   </header>
 
+  <main>
+  <p class="sr" id="live" role="status"></p>
+
   <section class="plate" aria-label="Résultats principaux">
     <div class="readout">
       <span class="readout-label">Consommation journalière</span>
-      <span class="readout-value"><output id="k-conso">640</output><small>Wh/j</small></span>
+      <span class="readout-value"><output aria-live="off" id="k-conso">640</output><small>Wh/j</small></span>
       <span class="readout-sub" id="k-conso-sub"></span>
     </div>
     <div class="readout">
       <span class="readout-label">Batterie conseillée</span>
-      <span class="readout-value"><output id="k-batt">150</output><small>Ah</small></span>
+      <span class="readout-value"><output aria-live="off" id="k-batt">150</output><small>Ah</small></span>
       <span class="readout-sub" id="k-batt-sub"></span>
     </div>
     <div class="readout">
       <span class="readout-label">Autonomie sans recharge</span>
-      <span class="readout-value"><output id="k-auto">1,6</output><small>jours</small></span>
+      <span class="readout-value"><output aria-live="off" id="k-auto">1,6</output><small>jours</small></span>
       <span class="readout-sub" id="k-auto-sub"></span>
       <span class="pill" id="k-auto-pill"></span>
     </div>
     <div class="readout">
       <span class="readout-label">Bilan en hiver</span>
-      <span class="readout-value"><output id="k-winter">−88</output><small>Wh/j</small></span>
+      <span class="readout-value"><output aria-live="off" id="k-winter">−88</output><small>Wh/j</small></span>
       <span class="readout-sub" id="k-winter-sub"></span>
     </div>
   </section>
@@ -681,7 +741,7 @@ th.r, td.r { text-align: right; }
         <tfoot>
           <tr>
             <td colspan="5" class="foot-label">Consommation journalière</td>
-            <td class="r"><output id="t-total" class="total-chip">640 Wh/j</output></td>
+            <td class="r"><output aria-live="off" id="t-total" class="total-chip">640 Wh/j</output></td>
             <td colspan="3" class="foot-note" id="t-note"></td>
           </tr>
         </tfoot>
@@ -701,7 +761,7 @@ th.r, td.r { text-align: right; }
       </span>
     </div>
     <div id="copy-fallback" hidden>
-      <label class="label" for="copy-text">Copie bloquée par le navigateur. Sélectionner et copier ce texte :</label>
+      <label class="label label--prose" for="copy-text">Copie bloquée par le navigateur. Sélectionner et copier ce texte :</label>
       <textarea id="copy-text" readonly></textarea>
     </div>
   </section>
@@ -794,30 +854,30 @@ th.r, td.r { text-align: right; }
           <span class="season-name">Été</span>
           <span class="unit-field"><input id="hsp-ete" class="num" type="text" inputmode="decimal" data-s="hsp.ete" autocomplete="off" aria-label="Ensoleillement en été, en heures équivalentes par jour"><span class="unit">h/j</span></span>
           <div class="season-chart">
-            <div class="bar"><div class="bar-marks"><i class="seg seg--solar" tabindex="0"></i><i class="seg seg--drive" tabindex="0"></i></div><i class="ref"></i></div>
+            <div class="bar"><div class="bar-marks"><i class="seg seg--solar" role="img" tabindex="0"></i><i class="seg seg--drive" role="img" tabindex="0"></i></div><i class="ref"></i></div>
             <span class="bar-values" data-o="vals"></span>
           </div>
-          <span class="season-net r" data-label="Bilan"><output data-o="net"></output></span>
+          <span class="season-net r" data-label="Bilan"><output aria-live="off" data-o="net"></output></span>
           <span class="season-auto r" data-label="Autonomie"><span class="pill" data-o="auto"></span></span>
         </div>
         <div class="season" data-k="mi">
           <span class="season-name">Mi-saison</span>
           <span class="unit-field"><input id="hsp-mi" class="num" type="text" inputmode="decimal" data-s="hsp.mi" autocomplete="off" aria-label="Ensoleillement en mi-saison, en heures équivalentes par jour"><span class="unit">h/j</span></span>
           <div class="season-chart">
-            <div class="bar"><div class="bar-marks"><i class="seg seg--solar" tabindex="0"></i><i class="seg seg--drive" tabindex="0"></i></div><i class="ref"></i></div>
+            <div class="bar"><div class="bar-marks"><i class="seg seg--solar" role="img" tabindex="0"></i><i class="seg seg--drive" role="img" tabindex="0"></i></div><i class="ref"></i></div>
             <span class="bar-values" data-o="vals"></span>
           </div>
-          <span class="season-net r" data-label="Bilan"><output data-o="net"></output></span>
+          <span class="season-net r" data-label="Bilan"><output aria-live="off" data-o="net"></output></span>
           <span class="season-auto r" data-label="Autonomie"><span class="pill" data-o="auto"></span></span>
         </div>
         <div class="season" data-k="hiver">
           <span class="season-name">Hiver</span>
           <span class="unit-field"><input id="hsp-hiver" class="num" type="text" inputmode="decimal" data-s="hsp.hiver" autocomplete="off" aria-label="Ensoleillement en hiver, en heures équivalentes par jour"><span class="unit">h/j</span></span>
           <div class="season-chart">
-            <div class="bar"><div class="bar-marks"><i class="seg seg--solar" tabindex="0"></i><i class="seg seg--drive" tabindex="0"></i></div><i class="ref"></i></div>
+            <div class="bar"><div class="bar-marks"><i class="seg seg--solar" role="img" tabindex="0"></i><i class="seg seg--drive" role="img" tabindex="0"></i></div><i class="ref"></i></div>
             <span class="bar-values" data-o="vals"></span>
           </div>
-          <span class="season-net r" data-label="Bilan"><output data-o="net"></output></span>
+          <span class="season-net r" data-label="Bilan"><output aria-live="off" data-o="net"></output></span>
           <span class="season-auto r" data-label="Autonomie"><span class="pill" data-o="auto"></span></span>
         </div>
       </div>
@@ -869,13 +929,13 @@ th.r, td.r { text-align: right; }
         <span><i class="key key--fuse"></i>Fusible</span>
       </div>
       <figure class="schema">
-        <div class="schema-scroll" id="schema" tabindex="0" aria-label="Schéma de câblage, défilement horizontal"></div>
+        <div class="schema-scroll" id="schema" role="region" tabindex="0" aria-label="Schéma de câblage, défilement horizontal"></div>
         <figcaption id="schema-cap">Schéma unifilaire : seuls les positifs sont tracés jusqu'aux appareils. Chaque appareil revient à la barre négative par un câble de même section que son positif.</figcaption>
       </figure>
 
       <h3>Nomenclature des liaisons</h3>
       <div class="field field--narrow">
-        <label for="s-drop">Chute admise depuis la batterie</label>
+        <label for="s-drop">Chute admise au total</label>
         <span class="unit-field"><input id="s-drop" class="num" type="text" inputmode="decimal" data-s="drop" autocomplete="off"><span class="unit">%</span></span>
       </div>
       <div class="table-wrap">
@@ -898,6 +958,30 @@ th.r, td.r { text-align: right; }
       <p class="hint">Chute : celle de la liaison seule, à son intensité max. Chute cumulée : de la batterie de service jusqu'au bout de la liaison, tout allumé pour les appareils et le convertisseur, à pleine charge pour le régulateur et le chargeur DC-DC. Le panneau et la batterie moteur sont en amont de leur chargeur : seule leur propre liaison compte.</p>
     </section>
 
+  <section class="block block--shop" aria-labelledby="h-shop">
+    <div class="block-head">
+      <span class="step">06</span>
+      <h2 id="h-shop">Matériel à acheter</h2>
+      <p>Liste déduite du dimensionnement : elle suit les appareils, les calibres et les longueurs saisis plus haut.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="nomen shop">
+        <thead>
+          <tr>
+            <th class="c-chk" scope="col"><span class="sr">Acheté</span></th>
+            <th class="w-item" scope="col">Élément</th>
+            <th class="w-spec" scope="col">À prévoir</th>
+            <th scope="col">Modèles réputés</th>
+          </tr>
+        </thead>
+        <tbody id="shop"></tbody>
+      </table>
+    </div>
+    <p class="hint">Modèles cités à titre d'exemple, sans lien commercial, d'après les gammes des fabricants relevées en novembre 2026. Vérifier la disponibilité et les caractéristiques sur la fiche du fabricant avant d'acheter. Câbles : cuivre souple multibrin, longueurs de la nomenclature pour l'aller et le retour, majorées de 10 %.</p>
+  </section>
+
+
+  </main>
 
   <footer class="notes">
     <h3>Hypothèses de calcul</h3>
@@ -1270,7 +1354,122 @@ function compute(st) {
     circuits: circuits, acLoads: acLoads, lines: lines, line: byId
   };
 }
-window.__vanElec = { compute: compute, defaults: defaults, normalize: normalize, exportPayload: exportPayload, parseImport: parseImport, fileName: fileName };
+
+/* ---------- Liste de matériel (fonction pure) ----------
+   Les modèles sont des exemples de gammes réputées, choisis d'après le calibre calculé. */
+var SHUNTS = [300, 500, 1000, 2000];
+var MPPT_MODEL = { 10: '75/10', 15: '75/15', 20: '100/20', 30: '100/30', 35: '150/35', 45: '150/45', 50: '100/50', 60: '150/60', 70: '150/70', 85: '150/85', 100: '150/100' };
+var INV_MODEL = {
+  150: 'Victron Phoenix 12/250', 300: 'Victron Phoenix 12/375', 500: 'Victron Phoenix 12/500',
+  800: 'Victron Phoenix 12/800', 1200: 'Victron Phoenix 12/1200', 1600: 'Victron Phoenix Inverter Smart 12/1600',
+  2000: 'Victron Phoenix Inverter Smart 12/2000', 3000: 'Victron Phoenix Inverter Smart 12/3000'
+};
+var BATT_MODEL = {
+  lfp: ['Victron Lithium SuperPack (BMS intégré)', 'Liontron LX Smart BMS, version Arctic chauffée pour l’hiver', 'Victron Lithium NG avec Lynx Smart BMS NG (gros systèmes)'],
+  agm: ['Victron AGM Super Cycle', 'Victron AGM Deep Cycle'],
+  gel: ['Victron Gel Deep Cycle']
+};
+var LINE_SHORT = { mppt: 'régulateur', alt: 'batterie moteur', dcdc: 'chargeur DC-DC', batt: 'batterie de service', box: 'boîte à fusibles', inv: 'convertisseur' };
+function shopping(st, c) {
+  var s = st.s, L = c.line, groups = [];
+  function group(title) { var g = { title: title, items: [] }; groups.push(g); return g.items; }
+  function item(list, label, spec, picks, note) { list.push({ label: label, spec: spec, picks: picks || [], note: note || '' }); }
+  function meters(len) { return Math.ceil(len * 1.1 - 1e-9); }
+  function pair(len) { var m = nf(meters(len)); return m + ' m rouge + ' + m + ' m noir'; }
+  var isLfp = s.chem === 'lfp', mf = L.batt.fuse;
+
+  /* Stockage */
+  var store = group('Stockage');
+  var capAh = s.cap >= c.needAh - 0.5 ? s.cap : c.stdAh;
+  var battNote = [];
+  if (capAh !== s.cap) battNote.push('La batterie saisie (' + nf(s.cap) + ' Ah) est sous les ' + nf(c.needAh) + ' Ah calculés.');
+  if (isLfp) battNote.push('BMS : au moins ' + nf(Math.ceil(c.iDis)) + ' A en décharge et ' + nf(Math.ceil(c.iChg)) + ' A en charge. Pas de charge sous 0 °C sans chauffage intégré.');
+  else if (capAh > 0 && c.iChg > 0) battNote.push('Charge prévue : ' + nf(c.iChg) + ' A, soit ' + nf(c.iChg / capAh * 100) + ' % de la capacité. Au plomb, viser 20 % environ.');
+  item(store, 'Batterie de service', c.chem.label + ' 12 V, ' + nf(capAh) + ' Ah', BATT_MODEL[s.chem] || [], battNote.join(' '));
+  var shunt = mf === null ? null : nextStd(SHUNTS, mf);
+  item(store, 'Contrôleur de batterie', 'Shunt ' + (shunt === null ? 'de plus de 500 A' : nf(shunt) + ' A') + ' sur le négatif',
+    shunt === null ? ['Victron SmartShunt 1000 A ou 2000 A'] : ['Victron SmartShunt ' + nf(shunt) + ' A'].concat(shunt <= 500 ? ['Victron BMV-712 Smart (avec écran)'] : []));
+
+  /* Recharge */
+  var charge = group('Recharge');
+  if (L.pv) {
+    item(charge, 'Panneau solaire', nf(s.wc) + ' Wc au total, monocristallin rigide', ['Victron BlueSolar monocristallin'],
+      'Les panneaux souples vieillissent plus vite, surtout collés sur le toit.');
+    item(charge, 'Régulateur MPPT', (c.mppt ? nf(c.mppt) + ' A ou plus' : 'plus de 100 A, en plusieurs régulateurs') + ', batterie 12 V',
+      c.mppt ? ['Victron SmartSolar MPPT ' + MPPT_MODEL[c.mppt]] : ['Plusieurs Victron SmartSolar MPPT, un par groupe de panneaux'],
+      'Le premier nombre du modèle est la tension maximale des panneaux : elle doit dépasser leur tension à vide, par temps froid.');
+    if (L.pv.sec !== null) {
+      item(charge, 'Câble solaire ' + fmtSec(L.pv.sec), pair(L.pv.len), [], 'Double isolation, résistant aux UV. Connecteurs MC4 et passe-toit étanche.');
+    }
+  }
+  if (L.dcdc) {
+    item(charge, 'Chargeur DC-DC', nf(s.dcdc, 1) + ' A, 12 V vers 12 V',
+      s.dcdc <= 50 ? ['Victron Orion XS 12/12-50A' + (s.dcdc < 50 ? ' (courant réglable)' : '')]
+        : (s.dcdc <= 70 ? ['Victron Orion XS 12/12-70A' + (s.dcdc < 70 ? ' (courant réglable)' : '')] : ['Deux Victron Orion XS en parallèle']),
+      'Vérifier que l’alternateur supporte ce courant en continu.');
+  }
+
+  /* 230 V */
+  if (L.inv) {
+    var ac = group('230 V');
+    item(ac, 'Convertisseur', (c.inverter ? nf(c.inverter) + ' VA' : 'plus de 5 000 VA') + ', pur sinus, entrée 12 V',
+      INV_MODEL[c.inverter] ? [INV_MODEL[c.inverter]] : [],
+      INV_MODEL[c.inverter] ? '' : 'Pas de modèle 12 V courant à cette puissance : réduire les appareils 230 V simultanés ou passer le parc en 24 V.');
+    item(ac, 'Protection des prises', 'Interrupteur différentiel 30 mA et disjoncteur en sortie du convertisseur', []);
+  }
+
+  /* Protection et distribution */
+  var prot = group('Protection et distribution');
+  item(prot, 'Fusible principal et son support', fmtA(mf) + ', au plus près du + de la batterie',
+    mf !== null && mf >= 30 && mf <= 300 ? ['Blue Sea 5191 et fusible MRBF ' + nf(mf) + ' A, sur la borne de la batterie']
+      : (mf === null || mf > 300 ? ['Fusible Class T ou MEGA et son porte-fusible'] : []),
+    isLfp ? 'Lithium : prendre un fusible à fort pouvoir de coupure (MRBF, Class T).' : '');
+  item(prot, 'Coupe-batterie', (mf === null ? 'Plus de 500 A' : fmtA(mf) + ' ou plus') + ' en continu',
+    mf !== null && mf <= 300 ? ['Blue Sea m-Series 6006 (300 A)']
+      : (mf !== null && mf <= 350 ? ['Blue Sea e-Series 9003e (350 A)'] : ['Blue Sea HD-Series 3000 (600 A)']));
+  item(prot, 'Barres de distribution', 'Une barre + et une barre −, ' + (mf === null ? 'plus de 500 A' : fmtA(mf) + ' ou plus'),
+    mf === null || mf >= 200 ? ['Victron Lynx Distributor (barres + et −, 4 départs à fusible MEGA)'] : []);
+  var lineFuses = [];
+  ['mppt', 'alt', 'dcdc', 'box', 'inv'].forEach(function (id) {
+    if (L[id] && L[id].fuse !== null) lineFuses.push(fmtA(L[id].fuse) + ' ' + LINE_SHORT[id]);
+  });
+  if (lineFuses.length) {
+    item(prot, 'Fusibles de ligne et supports', lineFuses.join(', '), [],
+      'Sous 30 A : porte-fusible à lame en ligne. De 30 à 200 A : fusible MIDI. Au-delà : MEGA.');
+  }
+  if (c.circuits.length) {
+    var n = c.circuits.length, counts = {}, over = L.box.I > 100;
+    c.circuits.forEach(function (ci) {
+      var f = ci.spec.fuse;
+      if (f === null) return;
+      counts[f] = (counts[f] || 0) + 1;
+      if (f > 30) over = true;
+    });
+    item(prot, 'Boîte à fusibles 12 V', n + ' circuit' + (n > 1 ? 's' : '') + ', avec barre négative',
+      n <= 6 ? ['Blue Sea ST Blade 5025 (6 circuits)'] : (n <= 12 ? ['Blue Sea ST Blade 5026 (12 circuits)'] : ['Deux Blue Sea ST Blade 5026 (12 circuits chacune)']),
+      'Limites de ces boîtes : 30 A par circuit, 100 A au total.' + (over ? ' Dépassées ici : sortir les gros circuits sur un départ séparé.' : ''));
+    var blades = Object.keys(counts).map(Number).sort(function (a, b) { return a - b; })
+      .map(function (f) { return counts[f] + ' × ' + fmtA(f); });
+    if (blades.length) item(prot, 'Fusibles à lame', blades.join(', '), [], 'Prévoir un jeu de rechange.');
+  }
+
+  /* Câbles : aller en rouge, retour en noir */
+  var cables = group('Câbles'), bySec = {};
+  c.lines.forEach(function (l) {
+    if (l.id === 'pv' || l.sec === null) return;
+    var b = bySec[l.sec] || (bySec[l.sec] = { len: 0, use: [] });
+    b.len += l.len;
+    b.use.push(LINE_SHORT[l.id] || l.label.split(' · ')[0]);
+  });
+  Object.keys(bySec).map(Number).sort(function (a, b) { return a - b; }).forEach(function (sec) {
+    item(cables, 'Câble souple ' + fmtSec(sec), pair(bySec[sec].len), [], 'Pour : ' + bySec[sec].use.join(', ') + '.');
+  });
+  item(cables, 'Cosses et finitions', 'Cosses tubulaires à sertir pour chaque section, gaine thermorétractable, gaine annelée', [],
+    'Au-delà de 10 mm², sertir à la pince hydraulique ou faire sertir.');
+
+  return groups.filter(function (g) { return g.items.length; });
+}
+window.__vanElec = { compute: compute, defaults: defaults, normalize: normalize, exportPayload: exportPayload, parseImport: parseImport, fileName: fileName, shopping: shopping };
 
 /* ---------- Sauvegarde ---------- */
 var state;
@@ -1371,9 +1570,30 @@ function el(tag, attrs) {
     else if (k === 'text') n.textContent = attrs[k];
     else n.setAttribute(k, attrs[k]);
   }
+  /* Une sortie est une zone annoncée par défaut : on la fait taire, le résumé #live parle pour toutes */
+  if (tag === 'output') n.setAttribute('aria-live', 'off');
   for (var i = 2; i < arguments.length; i++) n.appendChild(arguments[i]);
   return n;
 }
+/* État d'erreur d'un champ : bordure, attributs ARIA et message court sous le champ */
+function mark(input, msg) {
+  var host = input.closest('.unit-field') || input.parentNode;
+  var err = host && host.querySelector('.err');
+  if (!msg) {
+    input.removeAttribute('aria-invalid');
+    input.removeAttribute('aria-describedby');
+    if (err) err.remove();
+    return;
+  }
+  if (!err) {
+    err = el('span', { class: 'err', id: 'err-' + input.id, role: 'alert' });
+    host.appendChild(err);
+  }
+  if (err.textContent !== msg) err.textContent = msg;
+  input.setAttribute('aria-invalid', 'true');
+  input.setAttribute('aria-describedby', err.id);
+}
+function delLabel(name) { return 'Supprimer ' + (String(name || '').trim() || 'la ligne'); }
 function numInput(id, attrs) {
   var a = { id: id, class: 'num', type: 'text', inputmode: 'decimal', autocomplete: 'off' };
   for (var k in attrs) a[k] = attrs[k];
@@ -1397,14 +1617,13 @@ function buildRow(r) {
   pk.value = fmtIn(r.pk);
   var h = numInput('h-' + r.id, { 'data-f': 'h', 'aria-label': 'Heures de marche par jour', title: '24 h/j au maximum' });
   h.value = fmtIn(r.h);
-  if (r.h > 24) h.setAttribute('aria-invalid', 'true');
   var u = el('select', { id: 'u-' + r.id, 'data-f': 'u', 'aria-label': 'Tension' },
     el('option', { value: '12', text: '12 V' }), el('option', { value: '230', text: '230 V' }));
   u.value = String(r.u);
   var glyph = el('span', { 'data-o': 'glyph' });
   glyph.innerHTML = GLYPH[r.u];
-  var del = el('button', { type: 'button', class: 'icon-btn', 'data-act': 'del', 'aria-label': 'Supprimer la ligne', title: 'Supprimer la ligne', text: '×' });
-  return el('tr', { 'data-id': r.id },
+  var del = el('button', { type: 'button', class: 'icon-btn', 'data-act': 'del', 'aria-label': delLabel(r.name), title: delLabel(r.name), text: '×' });
+  var tr = el('tr', { 'data-id': r.id },
     el('td', { class: 'c-qty', 'data-label': 'Nb' }, qty),
     el('td', { class: 'c-name', 'data-label': 'Appareil' }, name, el('span', { class: 'print-only', 'data-o': 'pname', text: r.name })),
     el('td', { class: 'c-w', 'data-label': 'Puissance' }, unitField(w, 'W')),
@@ -1416,6 +1635,8 @@ function buildRow(r) {
     el('td', { class: 'c-u', 'data-label': 'Tension' }, el('span', { class: 'volt' }, u, glyph)),
     el('td', { class: 'c-del' }, del)
   );
+  if (r.h > 24) mark(h, '24 h/j au plus');
+  return tr;
 }
 function renderRows() {
   rowsEl.textContent = '';
@@ -1427,7 +1648,7 @@ function renderSettings() {
     var path = inp.dataset.s.split('.');
     var v = path.length === 2 ? state.s[path[0]][path[1]] : state.s[path[0]];
     inp.value = path[0] === 'chem' ? v : fmtIn(v);
-    inp.removeAttribute('aria-invalid');
+    mark(inp, '');
   });
 }
 function setPill(node, level, text) {
@@ -1450,20 +1671,20 @@ function buildLineRow(l) {
   len.value = fmtIn(cfg.len);
   var fuseCell;
   if (l.noFuse) {
-    fuseCell = el('td', {}, el('output', { text: 'sans' }));
+    fuseCell = el('td', { 'data-label': 'Fusible' }, el('output', { text: 'sans' }));
   } else {
     var fz = numInput('lf-' + l.id, { 'data-l': l.id, 'data-lf': 'fz', 'aria-label': 'Calibre du fusible en ampères, vide pour le calcul automatique' });
     fz.value = fmtIn(cfg.fz);
-    fuseCell = el('td', {}, unitField(fz, 'A'));
+    fuseCell = el('td', { 'data-label': 'Fusible' }, unitField(fz, 'A'));
   }
   return el('tr', { 'data-line': l.id },
-    el('td', {}, el('output', { 'data-o': 'name' }), el('span', { class: 'flag', 'data-o': 'flag' })),
-    el('td', { class: 'r' }, el('output', { 'data-o': 'i' })),
-    el('td', {}, unitField(len, 'm')),
+    el('td', { class: 'c-link' }, el('output', { 'data-o': 'name' }), el('span', { class: 'flag', 'data-o': 'flag' })),
+    el('td', { class: 'r c-i', 'data-label': 'Intensité max' }, el('output', { 'data-o': 'i' })),
+    el('td', { 'data-label': 'Longueur aller' }, unitField(len, 'm')),
     fuseCell,
-    el('td', { class: 'r key-cell' }, el('output', { 'data-o': 'sec' })),
-    el('td', { class: 'r' }, el('output', { 'data-o': 'du' })),
-    el('td', { class: 'r' }, el('output', { 'data-o': 'sum' }))
+    el('td', { class: 'r key-cell', 'data-label': 'Section' }, el('output', { 'data-o': 'sec' })),
+    el('td', { class: 'r c-du', 'data-label': 'Chute' }, el('output', { 'data-o': 'du' })),
+    el('td', { class: 'r c-sum', 'data-label': 'Chute cumulée' }, el('output', { 'data-o': 'sum' }))
   );
 }
 function renderNomen(c) {
@@ -1482,14 +1703,31 @@ function renderNomen(c) {
     var fz = $('[data-lf=fz]', tr);
     if (fz) {
       fz.placeholder = l.auto === null ? '> 500' : fmtIn(l.auto);
-      if (l.weak) fz.setAttribute('aria-invalid', 'true');
-      else if (fz.getAttribute('aria-invalid') === 'true' && !Number.isNaN(parseNum(fz.value || '0'))) fz.removeAttribute('aria-invalid');
+      if (l.weak) mark(fz, 'Sous l’intensité');
+      else if (fz.getAttribute('aria-invalid') === 'true' && !Number.isNaN(parseNum(fz.value || '0'))) mark(fz, '');
     }
     $('[data-o=du]', tr).textContent = fmtPct(l.du);
     $('[data-o=sum]', tr).textContent = fmtPct(l.duSum);
     $('[data-o=flag]', tr).textContent = l.weak
       ? 'Fusible plus faible que l’intensité : il sautera.'
       : (l.sec === null ? 'Hors gamme : raccourcir la liaison ou doubler les câbles.' : '');
+  });
+}
+
+/* ---------- Liste de matériel ---------- */
+var shopEl = $('#shop');
+function renderShop(c) {
+  shopEl.textContent = '';
+  shopping(state, c).forEach(function (g) {
+    shopEl.appendChild(el('tr', { class: 'grp' }, el('th', { colspan: '4', scope: 'colgroup', text: g.title })));
+    g.items.forEach(function (it) {
+      var spec = el('td', { 'data-label': 'À prévoir' }, el('span', { text: it.spec }));
+      if (it.note) spec.appendChild(el('span', { class: 'flag', text: it.note }));
+      var picks = el('td', { 'data-label': 'Modèles réputés' });
+      if (it.picks.length) it.picks.forEach(function (p) { picks.appendChild(el('span', { class: 'shop-pick', text: p })); });
+      else picks.appendChild(el('span', { class: 'flag', text: 'Au choix' }));
+      shopEl.appendChild(el('tr', {}, el('td', { class: 'c-chk' }), el('td', { class: 'key-cell', text: it.label }), spec, picks));
+    });
   });
 }
 
@@ -1730,6 +1968,34 @@ function recalc() {
 
   renderNomen(c);
   renderSchema(c);
+  renderShop(c);
+  syncScrollers();
+
+  /* Un seul résumé annoncé aux lecteurs d'écran, une fois la saisie posée */
+  clearTimeout(liveTimer);
+  if (liveReady) {
+    var summary = 'Consommation ' + nf(c.eBatt) + ' wattheures par jour. Batterie conseillée ' + nf(c.stdAh) + ' ampères-heures. Autonomie '
+      + (Number.isFinite(c.autonomy) ? nf(c.autonomy, 1) + ' jours' : 'sans limite') + '. Bilan en hiver ' + signed(winter.net) + ' wattheures par jour.';
+    liveTimer = setTimeout(function () { setText('live', summary); }, 900);
+  }
+  liveReady = true;
+}
+var liveTimer = null, liveReady = false;
+/* Une zone qui défile de côté doit pouvoir recevoir le focus clavier, et seulement dans ce cas */
+var SCROLL_LABEL = { loads: 'Appareils', shop: 'Matériel à acheter', nomen: 'Nomenclature des liaisons' };
+function syncScrollers() {
+  $$('.table-wrap').forEach(function (w) {
+    if (w.scrollWidth > w.clientWidth + 1) {
+      var t = $('table', w), kind = t.classList.contains('loads') ? 'loads' : (t.classList.contains('shop') ? 'shop' : 'nomen');
+      w.setAttribute('tabindex', '0');
+      w.setAttribute('role', 'region');
+      w.setAttribute('aria-label', SCROLL_LABEL[kind] + ', tableau à faire défiler de côté');
+    } else if (w.hasAttribute('tabindex')) {
+      w.removeAttribute('tabindex');
+      w.removeAttribute('role');
+      w.removeAttribute('aria-label');
+    }
+  });
 }
 function syncProject() {
   var name = state.name.trim();
@@ -1754,6 +2020,9 @@ function onRowEdit(e) {
   if (f === 'name') {
     r.name = t.value.replace(/[\r\n]+/g, ' ');
     $('[data-o=pname]', tr).textContent = r.name;
+    var del = $('[data-act=del]', tr);
+    del.setAttribute('aria-label', delLabel(r.name));
+    del.title = delLabel(r.name);
     autosize(t);
   } else if (f === 'u') {
     r.u = t.value === '230' ? 230 : 12;
@@ -1761,8 +2030,8 @@ function onRowEdit(e) {
   } else {
     var raw = t.value.trim();
     var n = raw === '' ? 0 : parseNum(raw);
-    if (Number.isNaN(n)) { t.setAttribute('aria-invalid', 'true'); return; }
-    if (f === 'h' && n > 24) t.setAttribute('aria-invalid', 'true'); else t.removeAttribute('aria-invalid');
+    if (Number.isNaN(n)) { mark(t, 'Nombre attendu'); return; }
+    mark(t, f === 'h' && n > 24 ? '24 h/j au plus' : '');
     r[f] = (f === 'pk' && n === 0) ? null : n;
   }
   touch();
@@ -1824,11 +2093,11 @@ document.addEventListener('input', function (e) {
     state.s.chem = CHEM[t.value] ? t.value : 'lfp';
     state.s.dod = CHEM[state.s.chem].dod;
     $('#s-dod').value = fmtIn(state.s.dod);
-    $('#s-dod').removeAttribute('aria-invalid');
+    mark($('#s-dod'), '');
   } else {
     var n = parseNum(t.value);
-    if (Number.isNaN(n)) { t.setAttribute('aria-invalid', 'true'); return; }
-    t.removeAttribute('aria-invalid');
+    if (Number.isNaN(n)) { mark(t, 'Nombre attendu'); return; }
+    mark(t, '');
     var path = key.split('.');
     if (path.length === 2) state.s[path[0]][path[1]] = n; else state.s[path[0]] = n;
   }
@@ -1843,13 +2112,13 @@ nomenEl.addEventListener('input', function (e) {
   var raw = t.value.trim();
   if (t.dataset.lf === 'fz') {
     var f = raw === '' ? 0 : parseNum(raw);
-    if (Number.isNaN(f)) { t.setAttribute('aria-invalid', 'true'); return; }
-    t.removeAttribute('aria-invalid');
+    if (Number.isNaN(f)) { mark(t, 'Nombre attendu'); return; }
+    mark(t, '');
     cfg.fz = f > 0 ? f : null;
   } else {
     var n = parseNum(raw);
-    if (Number.isNaN(n) || n <= 0) { t.setAttribute('aria-invalid', 'true'); return; }
-    t.removeAttribute('aria-invalid');
+    if (Number.isNaN(n) || n <= 0) { mark(t, 'Plus de 0 m'); return; }
+    mark(t, '');
     cfg.len = n;
   }
   touch();
@@ -2003,7 +2272,7 @@ seasonsEl.addEventListener('focusin', showTip);
 seasonsEl.addEventListener('mouseout', hideTip);
 seasonsEl.addEventListener('focusout', hideTip);
 
-window.addEventListener('resize', function () { $$('textarea', rowsEl).forEach(autosize); });
+window.addEventListener('resize', function () { $$('textarea', rowsEl).forEach(autosize); syncScrollers(); });
 if (document.fonts && document.fonts.ready) {
   document.fonts.ready.then(function () { $$('textarea', rowsEl).forEach(autosize); });
 }
